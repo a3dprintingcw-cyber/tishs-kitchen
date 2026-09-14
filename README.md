@@ -1,59 +1,70 @@
 # Tish's Kitchen
 
-A tap-to-sell order counter for Tish's Kitchen. She taps a meal each time one is
-sold, and the app keeps a running total of the money made that day.
+Order counter and back office for Tish's Kitchen, Curaçao.
+Live at **https://tishxkitchen.com**
 
-**Live app:** https://a3dprintingcw-cyber.github.io/tishs-kitchen/
+Open it on the phone, then **Add to Home Screen**. It opens like a real app and works with no internet.
 
-## How it works
+---
 
-* **Sell** shows every item as a big card. One tap is one sale. A badge on the
-  card shows how many of that item went out today.
-* **Undo** in the bottom bar removes the last tap, for when a button is pressed
-  by mistake.
-* **Today** is the running receipt: how many of each item, what each line is
-  worth, and the total for the day. The plus and minus buttons on a line fix a
-  miscount. From here the day can be copied as text or sent on WhatsApp.
-* **Close the day** files the day under History and sets the counter back to zero.
-* **History** keeps every closed day with its total, plus a running total across
-  all of them.
+## The five tabs
 
-Everything is stored on the phone itself, so it keeps working with no internet.
-Nothing is sent anywhere.
+**Sell** — tap the food to build an order, then press **Charge**.
+On the charge screen: pickup or delivery, customer name and phone, paid or not paid,
+cash or card, cash received (it works out the change), a discount, and a note.
 
-## Menu and prices
+**Orders** — everything taken today. Filter by *To make*, *Owed*, or *Delivery*.
+Open an order to take the money later, mark it made, send a WhatsApp receipt, or delete it.
 
-| Item | Price (XCG) |
-| --- | --- |
-| Pasta Porkchop + Drink | 35 |
-| Pasta Chicken + Drink | 35 |
-| Burrito Chicken, Takis + Drink | 35 |
-| Biscoff Cookie Cake Cup | 15 |
-| Strawberry Tres Leches Cup | 15 |
-| Strawberry Lemonade | 5 |
-| Peachy | 5 |
-| Delivery Fee | 10 |
+**Money** — today's takings at a glance: total, in hand, still owed, cash vs card,
+what sold today, and every earlier day. Send a summary to WhatsApp, or export a CSV.
+
+**People** — every customer who gave a name or number: how many orders, how much they spent,
+what they usually order, and what they still owe. One tap sends a friendly payment reminder.
+
+**More** — the menu editor, the delivery fee, backups.
+
+## Menu
+
+Tish can change the menu herself in **More**: add items, change prices, rename,
+regroup, or mark something **Sold out**. No code, no waiting on anyone.
+
+Starting menu:
+
+| Item | Price |
+|---|---|
+| Pasta Porkchop + Drink | XCG 35 |
+| Pasta Chicken + Drink | XCG 35 |
+| Burrito Chicken, Takis + Drink | XCG 35 |
+| Biscoff Cookie Cake Cup | XCG 15 |
+| Strawberry Tres Leches Cup | XCG 15 |
+| Strawberry Lemonade | XCG 5 |
+| Peachy | XCG 5 |
+| Delivery fee | XCG 10 |
+
+## Backups, important
+
+Everything is stored in the phone's own browser. Nothing is sent anywhere, which is why
+it works offline. It also means that if the phone is lost or the browser data is cleared,
+the orders go with it.
+
+**More → Save a backup** writes one small file. Keep it in WhatsApp, email or Drive.
+The app asks for a backup once a week. **Restore** loads it back.
 
 ## Photos
 
-Every item except the delivery fee has a photo in the `images` folder. To swap
-one, drop a new square image in that folder and point the item at it in the
-`MENU` list near the top of the script in `index.html`:
+Photos live in `images/`, square, about 320x320, WebP. To swap one, drop a new file in
+`images/` and point the item at it in the menu editor (`images/your-file.webp`).
 
-```js
-{ id:"pasta-porkchop", name:"Pasta Porkchop + Drink", price:35, emoji:"🍝", img:"images/pasta-porkchop.webp" },
+## Files
+
+```
+index.html      the whole app, no build step
+manifest.json   home screen name, colours, icons
+icon-192.png    app icon
+icon-512.png    app icon
+images/         product photos
+CNAME           tishxkitchen.com
 ```
 
-An empty `img` falls back to the emoji. Square images around 360x360 keep the
-app light enough to load fast on mobile data.
-
-## Changing a price or adding an item
-
-Same `MENU` list. Each item needs a unique `id`, a `name`, a `price` and an
-`emoji`. Days already closed keep the price they were sold at, so changing a
-price does not rewrite past history.
-
-## Putting it on her home screen
-
-Open the live link in Chrome or Safari, then choose "Add to Home Screen". It
-opens full screen like a normal app.
+Hosted on GitHub Pages from `main` at the repository root.

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tish's Kitchen POS</title>
-<meta name="description" content="Order counter and daily sales register for Tish's Kitchen.">
+<title>Tish's Kitchen</title>
+<meta name="description" content="Order taking, payments and daily takings for Tish's Kitchen.">
 <meta name="theme-color" content="#f5a7bf">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,467 +15,1244 @@
 <link rel="icon" href="icon-192.png">
 <style>
   :root{
-    --pink:#f5a7bf;
-    --pink-deep:#e0789a;
+    --pink:#f087a8;
+    --pink-mid:#f5a7bf;
     --pink-soft:#fbd5e0;
+    --pink-wash:#fdeef3;
     --cream:#fff7fa;
     --ink:#3b2a31;
     --muted:#9b8189;
     --line:#f2dde4;
-    --card:#ffffff;
-    --ok:#3f9d6d;
+    --card:#fff;
+    --ok:#2f9e68;
+    --ok-soft:#e3f5ec;
+    --warn:#d4763b;
+    --warn-soft:#fdefe3;
+    --bad:#cf4f5f;
+    --bad-soft:#fdeaec;
     --shadow:0 2px 10px rgba(186,118,142,.10);
+    --shadow-lg:0 8px 30px rgba(150,80,105,.18);
+    --nav-h:calc(60px + env(safe-area-inset-bottom));
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
   body{
     font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
     background:var(--cream);color:var(--ink);
-    padding-bottom:96px;
     -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(var(--nav-h) + 8px);
+    overscroll-behavior-y:contain;
   }
-  button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{border:0;background:none;cursor:pointer}
+  input,select,textarea{
+    width:100%;padding:12px 13px;border:1px solid var(--line);border-radius:13px;
+    background:#fff;outline:none
+  }
+  input:focus,select,textarea:focus{border-color:var(--pink-mid)}
+  label.fl{display:block;font-size:11.5px;font-weight:800;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 6px 2px}
+  .fieldrow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
   /* ---------- header ---------- */
   header{
-    position:sticky;top:0;z-index:20;
-    background:var(--pink-soft);
-    padding:14px 16px 0;
-    padding-top:calc(14px + env(safe-area-inset-top));
-    border-bottom:1px solid rgba(224,122,154,.18);
+    position:sticky;top:0;z-index:20;background:var(--pink-soft);
+    padding:12px 16px 12px;padding-top:calc(12px + env(safe-area-inset-top));
+    border-bottom:1px solid rgba(224,122,154,.2);
+    display:flex;align-items:center;gap:12px
   }
-  .brand{display:flex;align-items:center;gap:12px}
-  .brand img{width:46px;height:46px;border-radius:14px;display:block;box-shadow:var(--shadow)}
-  .brand h1{margin:0;font-size:19px;letter-spacing:.2px;font-weight:700}
-  .brand .date{margin:2px 0 0;font-size:12.5px;color:#a8707f;font-weight:600}
-  .tabs{display:flex;gap:6px;margin-top:12px}
-  .tabs button{
-    flex:1;padding:10px 6px;border-radius:12px 12px 0 0;
-    font-size:13.5px;font-weight:700;color:#b07c8c;background:rgba(255,255,255,.45)
+  header img{width:42px;height:42px;border-radius:13px;display:block;box-shadow:var(--shadow)}
+  header h1{margin:0;font-size:18px;font-weight:800;letter-spacing:.2px}
+  header .date{margin:1px 0 0;font-size:12px;color:#a8707f;font-weight:600}
+  header .hd{flex:1;min-width:0}
+  .pill{
+    padding:6px 11px;border-radius:999px;font-size:12px;font-weight:800;
+    background:#fff;color:#a8566f;white-space:nowrap;box-shadow:var(--shadow)
   }
-  .tabs button[aria-selected="true"]{background:var(--cream);color:var(--ink)}
 
-  /* ---------- layout ---------- */
-  main{padding:16px 14px 8px;max-width:760px;margin:0 auto}
+  main{padding:14px 14px 8px;max-width:820px;margin:0 auto}
   .panel[hidden]{display:none}
   h2.sec{
-    margin:22px 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    margin:20px 0 9px;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
     color:var(--muted);font-weight:800
   }
-  h2.sec:first-child{margin-top:4px}
+  h2.sec:first-child{margin-top:2px}
 
-  /* ---------- item grid ---------- */
+  /* ---------- items ---------- */
   .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
   @media(min-width:620px){.grid{grid-template-columns:repeat(3,1fr)}}
   .item{
     position:relative;background:var(--card);border-radius:18px;overflow:hidden;
     box-shadow:var(--shadow);text-align:left;display:flex;flex-direction:column;
-    transition:transform .12s ease;border:1px solid var(--line)
+    transition:transform .1s ease;border:1px solid var(--line)
   }
   .item:active{transform:scale(.96)}
   .item .pic{
-    height:112px;background:var(--pink-soft);display:flex;align-items:center;justify-content:center;
-    font-size:34px;line-height:1;position:relative
+    height:104px;background:var(--pink-soft);display:flex;align-items:center;
+    justify-content:center;font-size:32px;position:relative
   }
   .item .pic img{width:100%;height:100%;object-fit:cover;display:block}
   .item .body{padding:9px 11px 11px}
-  .item .nm{font-size:13.5px;font-weight:700;line-height:1.25;min-height:34px}
-  .item .pr{margin-top:5px;font-size:12.5px;font-weight:800;color:#c9738f}
+  .item .nm{font-size:13px;font-weight:700;line-height:1.25;min-height:33px}
+  .item .pr{margin-top:4px;font-size:12.5px;font-weight:800;color:#c9738f}
   .badge{
     position:absolute;top:7px;right:7px;min-width:26px;height:26px;border-radius:13px;
     background:var(--ink);color:#fff;font-size:13px;font-weight:800;
     display:flex;align-items:center;justify-content:center;padding:0 7px;
-    box-shadow:0 2px 6px rgba(0,0,0,.2)
+    box-shadow:0 2px 6px rgba(0,0,0,.22)
   }
   .badge[hidden]{display:none}
+  .soldout{position:absolute;inset:0;background:rgba(255,255,255,.72);
+    display:flex;align-items:center;justify-content:center;font-size:11px;
+    font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#a8566f}
 
-  /* ---------- bottom bar ---------- */
-  .bar{
-    position:fixed;left:0;right:0;bottom:0;z-index:30;
-    background:#fff;border-top:1px solid var(--line);
-    box-shadow:0 -3px 14px rgba(186,118,142,.12);
-    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
-    display:flex;align-items:center;gap:12px
+  /* ---------- cart bar ---------- */
+  .cartbar{
+    position:fixed;left:10px;right:10px;bottom:calc(var(--nav-h) + 8px);z-index:35;
+    background:var(--ink);color:#fff;border-radius:18px;box-shadow:var(--shadow-lg);
+    padding:11px 13px;display:flex;align-items:center;gap:12px;
+    transform:translateY(140%);transition:transform .22s cubic-bezier(.3,1.2,.5,1)
   }
-  .bar .tot{flex:1}
-  .bar .tot .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:800}
-  .bar .tot .amt{font-size:25px;font-weight:800;line-height:1.1}
-  .bar .tot .amt span{font-size:13px;color:var(--muted);font-weight:700;margin-right:3px}
-  .bar .cnt{font-size:11.5px;color:var(--muted);font-weight:700;margin-top:1px}
-  .undo{
-    padding:11px 16px;border-radius:14px;background:var(--pink-soft);
-    font-size:13.5px;font-weight:800;color:#a8566f
-  }
-  .undo:disabled{opacity:.4}
+  .cartbar.show{transform:translateY(0)}
+  .cartbar .info{flex:1;min-width:0}
+  .cartbar .l1{font-size:18px;font-weight:800;line-height:1.15}
+  .cartbar .l2{font-size:11.5px;opacity:.75;font-weight:600;margin-top:1px}
+  .cartbar .go{background:var(--pink);color:#fff;padding:11px 18px;border-radius:14px;
+    font-weight:800;font-size:14px;white-space:nowrap}
+  .cartbar .clr{opacity:.6;font-size:18px;padding:6px 4px;color:#fff}
 
-  /* ---------- toast ---------- */
-  #toast{
-    position:fixed;left:50%;bottom:104px;transform:translateX(-50%) translateY(14px);
-    background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;
-    font-size:14px;font-weight:700;opacity:0;pointer-events:none;
-    transition:opacity .18s ease,transform .18s ease;z-index:40;white-space:nowrap;
-    max-width:92vw;overflow:hidden;text-overflow:ellipsis
+  /* ---------- bottom nav ---------- */
+  nav.tabs{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;
+    border-top:1px solid var(--line);display:flex;
+    padding-bottom:env(safe-area-inset-bottom);
+    box-shadow:0 -3px 14px rgba(186,118,142,.1)
   }
-  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  nav.tabs button{
+    flex:1;padding:8px 2px 7px;display:flex;flex-direction:column;align-items:center;
+    gap:3px;font-size:10.5px;font-weight:700;color:var(--muted);position:relative
+  }
+  nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;
+    stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  nav.tabs button[aria-selected="true"]{color:var(--pink)}
+  nav.tabs .dot{
+    position:absolute;top:4px;right:50%;margin-right:-20px;min-width:17px;height:17px;
+    border-radius:9px;background:var(--bad);color:#fff;font-size:10px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;padding:0 4px
+  }
+  nav.tabs .dot[hidden]{display:none}
 
-  /* ---------- receipt ---------- */
-  .card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
-  .row{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line)}
+  /* ---------- cards / rows ---------- */
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;
+    box-shadow:var(--shadow);overflow:hidden;margin-bottom:12px}
+  .row{display:flex;align-items:center;gap:11px;padding:12px 13px;
+    border-bottom:1px solid var(--line);text-align:left;width:100%}
   .row:last-child{border-bottom:0}
-  .row .q{
-    min-width:30px;height:30px;border-radius:10px;background:var(--pink-soft);
-    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:0 0 auto
-  }
-  .row .nm{flex:1;font-size:14px;font-weight:600;line-height:1.3}
-  .row .nm small{display:block;color:var(--muted);font-weight:600;font-size:11.5px;margin-top:1px}
+  .row .q{min-width:30px;height:30px;border-radius:10px;background:var(--pink-wash);
+    display:flex;align-items:center;justify-content:center;font-weight:800;
+    font-size:14px;flex:0 0 auto}
+  .row .nm{flex:1;min-width:0;font-size:14px;font-weight:700;line-height:1.3}
+  .row .nm small{display:block;color:var(--muted);font-weight:600;font-size:11.5px;
+    margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .row .sub{font-size:14px;font-weight:800;white-space:nowrap}
   .row .adj{display:flex;gap:6px;flex:0 0 auto}
-  .row .adj button{
-    width:30px;height:30px;border-radius:10px;background:var(--cream);
-    border:1px solid var(--line);font-weight:800;font-size:15px;line-height:1;color:#a8566f
-  }
-  .totrow{display:flex;align-items:baseline;justify-content:space-between;padding:14px 13px;background:var(--pink-soft)}
-  .totrow .l{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:#a8707f}
-  .totrow .r{font-size:24px;font-weight:800}
-  .empty{padding:34px 16px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6}
-  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
-  .btn{
-    padding:14px;border-radius:15px;font-size:14px;font-weight:800;text-align:center;
-    background:#fff;border:1px solid var(--line);box-shadow:var(--shadow)
-  }
-  .btn.primary{background:var(--pink);color:#fff;border-color:var(--pink)}
-  .btn.wide{grid-column:1 / -1}
-  .btn:disabled{opacity:.45}
+  .row .adj button{width:31px;height:31px;border-radius:10px;background:var(--cream);
+    border:1px solid var(--line);font-weight:800;font-size:16px;line-height:1;color:#a8566f}
+  .totrow{display:flex;align-items:baseline;justify-content:space-between;
+    padding:14px 13px;background:var(--pink-wash)}
+  .totrow .l{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+    font-weight:800;color:#a8707f}
+  .totrow .r{font-size:23px;font-weight:800}
+  .empty{padding:36px 18px;text-align:center;color:var(--muted);font-size:14px;line-height:1.65}
+  .empty b{color:var(--ink)}
 
-  /* ---------- history ---------- */
-  .day{margin-bottom:10px}
-  .day summary{
-    list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;
-    gap:10px;padding:14px 13px;font-weight:700;font-size:14px
-  }
-  .day summary::-webkit-details-marker{display:none}
-  .day summary .d small{display:block;color:var(--muted);font-weight:600;font-size:11.5px;margin-top:2px}
-  .day summary .v{font-weight:800;font-size:16px;white-space:nowrap}
-  .day .inner{border-top:1px solid var(--line)}
-  .note{font-size:12px;color:var(--muted);line-height:1.6;margin:14px 2px 0;text-align:center}
+  .tag{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;
+    font-size:11px;font-weight:800;white-space:nowrap}
+  .tag.paid{background:var(--ok-soft);color:var(--ok)}
+  .tag.due{background:var(--bad-soft);color:var(--bad)}
+  .tag.open{background:var(--warn-soft);color:var(--warn)}
+  .tag.plain{background:var(--pink-wash);color:#a8566f}
+
+  .btn{padding:14px;border-radius:15px;font-size:14px;font-weight:800;text-align:center;
+    background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);display:block;width:100%}
+  .btn.primary{background:var(--pink);color:#fff;border-color:var(--pink)}
+  .btn.ghost{background:transparent;box-shadow:none;border-color:var(--line)}
+  .btn.danger{color:var(--bad);border-color:#f3d3d8}
+  .btn:disabled{opacity:.45}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+  .actions .wide{grid-column:1/-1}
+
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch}
+  .chips button{padding:8px 14px;border-radius:999px;background:#fff;border:1px solid var(--line);
+    font-size:13px;font-weight:700;white-space:nowrap;color:var(--muted)}
+  .chips button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  /* ---------- stats ---------- */
+  .hero{background:linear-gradient(160deg,#f9b6cb,#f0879f);color:#fff;border-radius:22px;
+    padding:20px 18px;box-shadow:var(--shadow-lg);margin-bottom:12px}
+  .hero .k{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+    font-weight:800;opacity:.85}
+  .hero .v{font-size:38px;font-weight:800;line-height:1.05;margin-top:4px}
+  .hero .v span{font-size:16px;opacity:.85;margin-right:5px}
+  .hero .sub{margin-top:12px;display:flex;gap:18px;font-size:12.5px;font-weight:700}
+  .hero .sub b{display:block;font-size:16px;margin-top:1px}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px;
+    box-shadow:var(--shadow)}
+  .stat .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);font-weight:800}
+  .stat .v{font-size:20px;font-weight:800;margin-top:3px}
+  .stat.due .v{color:var(--bad)}
+  .stat.ok .v{color:var(--ok)}
+
+  /* ---------- sheet ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(59,42,49,.45);z-index:50;opacity:0;
+    pointer-events:none;transition:opacity .2s}
+  .scrim.show{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:51;background:var(--cream);
+    border-radius:24px 24px 0 0;max-height:92vh;display:flex;flex-direction:column;
+    transform:translateY(100%);transition:transform .26s cubic-bezier(.3,1,.5,1);
+    box-shadow:var(--shadow-lg)}
+  .sheet.show{transform:translateY(0)}
+  .sheet .grab{width:40px;height:4px;border-radius:2px;background:#e6cdd6;
+    margin:9px auto 2px;flex:0 0 auto}
+  .sheet .shead{display:flex;align-items:center;gap:10px;padding:8px 16px 10px;flex:0 0 auto}
+  .sheet .shead h3{margin:0;font-size:17px;font-weight:800;flex:1}
+  .sheet .shead .x{font-size:15px;font-weight:800;color:var(--muted);padding:6px 8px}
+  .sheet .sbody{overflow-y:auto;padding:0 16px 16px;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch}
+  .seg{display:grid;gap:8px;grid-auto-flow:column;grid-auto-columns:1fr}
+  .seg button{padding:13px 6px;border-radius:14px;background:#fff;border:1px solid var(--line);
+    font-size:13.5px;font-weight:800;color:var(--muted)}
+  .seg button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .seg.pay button[aria-pressed="true"]{background:var(--ok);border-color:var(--ok)}
+  .fgroup{margin-bottom:14px}
+  .change{background:var(--ok-soft);color:var(--ok);border-radius:14px;padding:12px 14px;
+    font-weight:800;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .change.neg{background:var(--bad-soft);color:var(--bad)}
+
+  #toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 76px);
+    transform:translateX(-50%) translateY(14px);background:var(--ink);color:#fff;
+    padding:11px 18px;border-radius:999px;font-size:14px;font-weight:700;opacity:0;
+    pointer-events:none;transition:opacity .18s,transform .18s;z-index:60;
+    max-width:92vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .banner{background:var(--warn-soft);border:1px solid #f6dcc4;color:#8a5124;
+    border-radius:16px;padding:12px 14px;font-size:13px;font-weight:600;
+    line-height:1.5;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start}
+  .banner button{font-weight:800;color:#8a5124;text-decoration:underline;padding:0;font-size:13px}
+  .note{font-size:12px;color:var(--muted);line-height:1.6;margin:12px 2px 0;text-align:center}
+  details.day summary{list-style:none;cursor:pointer;display:flex;align-items:center;
+    justify-content:space-between;gap:10px;padding:14px 13px;font-weight:700;font-size:14px}
+  details.day summary::-webkit-details-marker{display:none}
+  details.day summary small{display:block;color:var(--muted);font-weight:600;
+    font-size:11.5px;margin-top:2px}
+  details.day summary .v{font-weight:800;font-size:16px;white-space:nowrap}
+  .bar-mini{height:6px;border-radius:3px;background:var(--pink-wash);overflow:hidden;margin-top:6px}
+  .bar-mini i{display:block;height:100%;background:var(--pink);border-radius:3px}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="brand">
-    <img src="icon-192.png" alt="Tish's Kitchen">
-    <div>
-      <h1>Tish's Kitchen</h1>
-      <p class="date" id="today"></p>
-    </div>
+  <img src="icon-192.png" alt="">
+  <div class="hd">
+    <h1>Tish's Kitchen</h1>
+    <p class="date" id="todayLbl"></p>
   </div>
-  <nav class="tabs" role="tablist">
-    <button role="tab" id="tab-sell" aria-selected="true" onclick="show('sell')">Sell</button>
-    <button role="tab" id="tab-today" aria-selected="false" onclick="show('today')">Today</button>
-    <button role="tab" id="tab-history" aria-selected="false" onclick="show('history')">History</button>
-  </nav>
+  <span class="pill" id="hdrTotal">XCG 0</span>
 </header>
 
 <main>
   <section class="panel" id="p-sell"></section>
-  <section class="panel" id="p-today" hidden></section>
-  <section class="panel" id="p-history" hidden></section>
+  <section class="panel" id="p-orders" hidden></section>
+  <section class="panel" id="p-money" hidden></section>
+  <section class="panel" id="p-people" hidden></section>
+  <section class="panel" id="p-more" hidden></section>
 </main>
 
-<div class="bar">
-  <div class="tot">
-    <div class="lbl">Today</div>
-    <div class="amt"><span>XCG</span><b id="barTotal">0</b></div>
-    <div class="cnt" id="barCount">0 items</div>
+<div class="cartbar" id="cartbar">
+  <button class="clr" onclick="clearCart()" aria-label="Clear">&#10005;</button>
+  <div class="info">
+    <div class="l1" id="cartTotal">XCG 0</div>
+    <div class="l2" id="cartCount">0 items</div>
   </div>
-  <button class="undo" id="undoBtn" onclick="undo()">Undo</button>
+  <button class="go" onclick="openCheckout()">Charge</button>
+</div>
+
+<nav class="tabs" id="nav"></nav>
+
+<div class="scrim" id="scrim" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true">
+  <div class="grab"></div>
+  <div class="shead"><h3 id="sheetTitle"></h3>
+    <button class="x" onclick="closeSheet()">Close</button></div>
+  <div class="sbody" id="sheetBody"></div>
 </div>
 
 <div id="toast"></div>
 
 <script>
-/* ============================================================
-   MENU
-   To add a photo later: put the file in the images folder and
-   set img to its name, for example  img:"images/pasta-porkchop.jpg"
-   Leave img empty to keep the emoji placeholder.
-   ============================================================ */
-var MENU = [
-  { group:"Meals  ·  XCG 35", items:[
-    { id:"pasta-porkchop",  name:"Pasta Porkchop + Drink",          price:35, emoji:"🍝", img:"images/pasta-porkchop.webp" },
-    { id:"pasta-chicken",   name:"Pasta Chicken + Drink",           price:35, emoji:"🍝", img:"images/pasta-chicken.webp" },
-    { id:"burrito-chicken", name:"Burrito Chicken, Takis + Drink",  price:35, emoji:"🌯", img:"images/burrito-chicken.webp" }
-  ]},
-  { group:"Cake Cups  ·  XCG 15", items:[
-    { id:"biscoff-cup",     name:"Biscoff Cookie Cake Cup",         price:15, emoji:"🍪", img:"images/biscoff-cup.webp" },
-    { id:"tresleches-cup",  name:"Strawberry Tres Leches Cup",      price:15, emoji:"🍓", img:"images/tresleches-cup.webp" }
-  ]},
-  { group:"Drinks on their own  ·  XCG 5", items:[
-    { id:"strawberry-lemonade", name:"Strawberry Lemonade",         price:5,  emoji:"🍹", img:"images/strawberry-lemonade.webp" },
-    { id:"peachy",              name:"Peachy",                      price:5,  emoji:"🍑", img:"images/peachy.webp" }
-  ]},
-  { group:"Extra", items:[
-    { id:"delivery",        name:"Delivery Fee",                    price:10, emoji:"🛵", img:"" }
-  ]}
+/* =====================================================================
+   TISH'S KITCHEN
+   Everything is stored in this phone's browser. Nothing is sent anywhere.
+   ===================================================================== */
+
+var KEY = "tishskitchen.v2";
+var OLDKEY = "tishskitchen.v1";
+var CUR = "XCG";
+
+/* ---------- default menu ---------- */
+var DEFAULT_MENU = [
+  { id:"pasta-porkchop",      name:"Pasta Porkchop + Drink",         price:35, cat:"Meals",     emoji:"🍝", img:"images/pasta-porkchop.webp",      off:false },
+  { id:"pasta-chicken",       name:"Pasta Chicken + Drink",          price:35, cat:"Meals",     emoji:"🍝", img:"images/pasta-chicken.webp",       off:false },
+  { id:"burrito-chicken",     name:"Burrito Chicken, Takis + Drink", price:35, cat:"Meals",     emoji:"🌯", img:"images/burrito-chicken.webp",     off:false },
+  { id:"biscoff-cup",         name:"Biscoff Cookie Cake Cup",        price:15, cat:"Cake cups", emoji:"🍪", img:"images/biscoff-cup.webp",         off:false },
+  { id:"tresleches-cup",      name:"Strawberry Tres Leches Cup",     price:15, cat:"Cake cups", emoji:"🍓", img:"images/tresleches-cup.webp",      off:false },
+  { id:"strawberry-lemonade", name:"Strawberry Lemonade",            price:5,  cat:"Drinks",    emoji:"🍹", img:"images/strawberry-lemonade.webp", off:false },
+  { id:"peachy",              name:"Peachy",                         price:5,  cat:"Drinks",    emoji:"🍑", img:"images/peachy.webp",              off:false }
 ];
 
-var ITEM = {};
-MENU.forEach(function(g){ g.items.forEach(function(it){ ITEM[it.id] = it; }); });
+var db = { v:2, orders:[], menu:null, settings:{ fee:10, cc:"599", backedUp:0 } };
+var cart = [];
+var tab = "sell";
+var orderFilter = "all";
+var peopleQuery = "";
 
-/* ============================================================
+/* =====================================================================
    STORAGE
-   ============================================================ */
-var KEY = "tishskitchen.v1";
-var db = { v:1, days:{} };
-
+   ===================================================================== */
 function load(){
   try{
     var raw = localStorage.getItem(KEY);
-    if(raw){ var p = JSON.parse(raw); if(p && p.days) db = p; }
+    if (raw){
+      var p = JSON.parse(raw);
+      if (p && p.orders){
+        db = p;
+        db.settings = db.settings || { fee:10, cc:"599", backedUp:0 };
+        if (db.settings.fee == null) db.settings.fee = 10;
+        if (!db.settings.cc) db.settings.cc = "599";
+        if (!db.menu || !db.menu.length) db.menu = DEFAULT_MENU.slice();
+        return;
+      }
+    }
+  }catch(e){}
+  db.menu = DEFAULT_MENU.slice();
+  migrateV1();
+}
+
+/* Old version stored a simple tally per day. Turn each tally into an order
+   so the money history from those days is not lost. */
+function migrateV1(){
+  try{
+    var raw = localStorage.getItem(OLDKEY);
+    if (!raw) return;
+    var old = JSON.parse(raw);
+    if (!old || !old.days) return;
+    Object.keys(old.days).forEach(function(k){
+      var list = old.days[k];
+      if (!list || !list.length) return;
+      var datePart = k.split("#")[0].split("-");
+      var when = new Date(+datePart[0], +datePart[1]-1, +datePart[2], 18, 0, 0).getTime();
+      var items = {}, total = 0;
+      list.forEach(function(s){
+        if (!items[s.i]) items[s.i] = { id:s.i, name:nameOf(s.i), price:s.p, qty:0 };
+        items[s.i].qty++; total += s.p;
+      });
+      db.orders.push({
+        id:"legacy-"+k, ts:when, items:Object.keys(items).map(function(x){return items[x];}),
+        fee:0, discount:0, total:total, cust:{name:"",phone:""}, type:"pickup",
+        paid:true, method:"cash", received:null, note:"Imported from the old counter",
+        done:true
+      });
+    });
+    save();
   }catch(e){}
 }
+
 function save(){
-  try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){}
+  try{ localStorage.setItem(KEY, JSON.stringify(db)); }
+  catch(e){ toast("Could not save. Phone storage may be full."); }
 }
+
+/* =====================================================================
+   HELPERS
+   ===================================================================== */
+function money(n){
+  n = Math.round(n*100)/100;
+  return n % 1 === 0 ? String(n) : n.toFixed(2);
+}
+function cur(n){ return CUR + " " + money(n); }
 function dkey(d){
   d = d || new Date();
-  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 }
-function log(k){ if(!db.days[k]) db.days[k] = []; return db.days[k]; }
-function todayLog(){ return log(dkey()); }
-
-/* ============================================================
-   HELPERS
-   ============================================================ */
-function money(n){ return (Math.round(n*100)/100) % 1 === 0 ? String(n) : n.toFixed(2); }
-function total(list){ var s = 0; for(var i=0;i<list.length;i++) s += list[i].p; return s; }
-function counts(list){
-  var c = {};
-  for(var i=0;i<list.length;i++) c[list[i].i] = (c[list[i].i]||0) + 1;
-  return c;
-}
+function dkeyOf(ts){ return dkey(new Date(ts)); }
 function niceDate(k){
-  var p = k.split("-");
-  var d = new Date(+p[0], +p[1]-1, +p[2]);
-  return d.toLocaleDateString("en-GB",{weekday:"long", day:"numeric", month:"long", year:"numeric"});
+  var p = k.split("-"), d = new Date(+p[0], +p[1]-1, +p[2]);
+  return d.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
 }
 function shortDate(k){
-  var p = k.split("-");
-  var d = new Date(+p[0], +p[1]-1, +p[2]);
-  return d.toLocaleDateString("en-GB",{weekday:"short", day:"numeric", month:"short"});
+  var p = k.split("-"), d = new Date(+p[0], +p[1]-1, +p[2]);
+  return d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
 }
-function label(id){ return ITEM[id] ? ITEM[id].name : id; }
-
-var toastTimer;
+function clock(ts){
+  return new Date(ts).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"});
+}
+function esc(s){
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function menuItem(id){
+  for (var i=0;i<db.menu.length;i++) if (db.menu[i].id === id) return db.menu[i];
+  return null;
+}
+function nameOf(id){ var m = menuItem(id); return m ? m.name : id; }
+function todayOrders(){
+  var k = dkey();
+  return db.orders.filter(function(o){ return dkeyOf(o.ts) === k; });
+}
+function sum(list, f){ var t=0; for (var i=0;i<list.length;i++) t += f(list[i]); return t; }
+function waLink(phone, text){
+  var d = String(phone||"").replace(/\D/g,"");
+  if (!d) return null;
+  if (d.length <= 8) d = db.settings.cc + d;
+  return "https://wa.me/"+d+"?text="+encodeURIComponent(text);
+}
+var toastT;
 function toast(msg){
   var t = document.getElementById("toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 1400);
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(function(){ t.classList.remove("show"); }, 1800);
 }
-function buzz(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms||18); }catch(e){} }
+function buzz(ms){ if (navigator.vibrate) try{ navigator.vibrate(ms||16); }catch(e){} }
 
-/* ============================================================
-   ACTIONS
-   ============================================================ */
-function sell(id){
-  var it = ITEM[id]; if(!it) return;
-  todayLog().push({ i:id, p:it.price, t:Date.now() });
-  save(); render();
-  buzz(18);
-  toast("+ XCG " + money(it.price) + "   " + it.name);
+/* =====================================================================
+   CART
+   ===================================================================== */
+function cartQty(id){
+  for (var i=0;i<cart.length;i++) if (cart[i].id===id) return cart[i].qty;
+  return 0;
 }
-function undo(){
-  var l = todayLog();
-  if(!l.length) return;
-  var last = l.pop();
-  save(); render();
-  buzz(30);
-  toast("Removed " + label(last.i));
-}
-function removeOne(id){
-  var l = todayLog();
-  for(var i = l.length - 1; i >= 0; i--){
-    if(l[i].i === id){ l.splice(i,1); break; }
+function addToCart(id){
+  var m = menuItem(id); if (!m || m.off) return;
+  for (var i=0;i<cart.length;i++){
+    if (cart[i].id===id){ cart[i].qty++; afterCart(m); return; }
   }
-  save(); render(); buzz(30);
+  cart.push({ id:m.id, name:m.name, price:m.price, qty:1 });
+  afterCart(m);
 }
-function addOne(id){ sell(id); }
+function afterCart(m){
+  buzz(14); save();
+  toast("Added " + m.name);
+  renderSell(); renderCartBar();
+}
+function bumpCart(id, d){
+  for (var i=0;i<cart.length;i++){
+    if (cart[i].id===id){
+      cart[i].qty += d;
+      if (cart[i].qty <= 0) cart.splice(i,1);
+      break;
+    }
+  }
+  buzz(14); renderSell(); renderCartBar();
+  if (sheetOpen === "checkout") openCheckout(true);
+}
+function clearCart(){
+  if (!cart.length) return;
+  if (!confirm("Clear this order?")) return;
+  cart = []; renderSell(); renderCartBar(); closeSheet();
+}
+function cartSubtotal(){ return sum(cart, function(l){ return l.price * l.qty; }); }
+function cartCount(){ return sum(cart, function(l){ return l.qty; }); }
 
-function closeDay(){
-  var l = todayLog();
-  if(!l.length){ toast("Nothing to close yet"); return; }
-  if(!confirm("Close " + niceDate(dkey()) + " with XCG " + money(total(l)) + "?\n\nThe day is saved in History and the counter goes back to zero.")) return;
-  var n = 1;
-  while(db.days[dkey() + "#" + n]) n++;
-  db.days[dkey() + "#" + n] = l;
-  db.days[dkey()] = [];
-  save(); render(); show("history");
-  toast("Day closed. Ready for a new one.");
+function renderCartBar(){
+  var bar = document.getElementById("cartbar");
+  var n = cartCount();
+  document.getElementById("cartTotal").textContent = cur(cartSubtotal());
+  document.getElementById("cartCount").textContent = n + (n===1?" item":" items");
+  bar.classList.toggle("show", n>0 && tab==="sell");
 }
 
-function summaryText(k, list){
-  var c = counts(list), lines = [], ids = Object.keys(c);
-  ids.sort(function(a,b){ return c[b]-c[a]; });
-  lines.push("Tish's Kitchen  ·  " + niceDate(k.split("#")[0]));
-  lines.push("");
-  ids.forEach(function(id){
-    var price = 0;
-    for(var i=0;i<list.length;i++) if(list[i].i===id){ price = list[i].p; break; }
-    lines.push(c[id] + " x " + label(id) + "   XCG " + money(c[id]*price));
+/* =====================================================================
+   SELL
+   ===================================================================== */
+function renderSell(){
+  var cats = [], byCat = {};
+  db.menu.forEach(function(m){
+    if (!byCat[m.cat]){ byCat[m.cat] = []; cats.push(m.cat); }
+    byCat[m.cat].push(m);
   });
-  lines.push("");
-  lines.push("Items sold: " + list.length);
-  lines.push("TOTAL: XCG " + money(total(list)));
-  return lines.join("\n");
+  var h = "";
+  if (!db.menu.length){
+    h = '<div class="card"><div class="empty">No items on the menu yet.<br>'
+      + 'Go to <b>More</b> and add your first one.</div></div>';
+  }
+  cats.forEach(function(c){
+    h += '<h2 class="sec">' + esc(c) + '</h2><div class="grid">';
+    byCat[c].forEach(function(m){
+      var q = cartQty(m.id);
+      var pic = m.img ? '<img src="'+esc(m.img)+'" alt="" loading="lazy">' : esc(m.emoji||"");
+      h += '<button class="item" onclick="addToCart(\''+esc(m.id)+'\')"'
+         + (m.off ? ' disabled' : '') + '>'
+         +   '<div class="pic">' + pic
+         +     (m.off ? '<span class="soldout">Sold out</span>' : '')
+         +     '<span class="badge"' + (q?'':' hidden') + '>' + q + '</span>'
+         +   '</div>'
+         +   '<div class="body"><div class="nm">'+esc(m.name)+'</div>'
+         +     '<div class="pr">'+cur(m.price)+'</div></div>'
+         + '</button>';
+    });
+    h += '</div>';
+  });
+  h += '<p class="note">Tap the food to build an order, then press Charge.</p>';
+  document.getElementById("p-sell").innerHTML = h;
 }
-function copySummary(k){
-  var list = db.days[k] || [];
-  var txt = summaryText(k, list);
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(txt).then(function(){ toast("Summary copied"); },
-                                            function(){ fallbackCopy(txt); });
+
+/* =====================================================================
+   CHECKOUT
+   ===================================================================== */
+var draft = null;
+function openCheckout(keep){
+  if (!cart.length){ toast("Add something first"); return; }
+  if (!keep || !draft){
+    draft = { name:"", phone:"", type:"pickup", fee:0, discount:0,
+              paid:true, method:"cash", received:"", note:"" };
+  }
+  openSheet("New order", checkoutHTML());
+}
+function draftTotal(){
+  return Math.max(0, cartSubtotal() + (+draft.fee||0) - (+draft.discount||0));
+}
+function checkoutHTML(){
+  var lines = cart.map(function(l){
+    return '<div class="row">'
+      + '<div class="q">'+l.qty+'</div>'
+      + '<div class="nm">'+esc(l.name)+'<small>'+cur(l.price)+' each</small></div>'
+      + '<div class="adj">'
+      +   '<button onclick="bumpCart(\''+esc(l.id)+'\',-1)">&minus;</button>'
+      +   '<button onclick="bumpCart(\''+esc(l.id)+'\',1)">+</button>'
+      + '</div>'
+      + '<div class="sub">'+money(l.price*l.qty)+'</div></div>';
+  }).join("");
+
+  var names = uniqueCustomers().map(function(c){
+    return '<option value="'+esc(c.name)+'">';
+  }).join("");
+
+  var t = draftTotal();
+  var rec = parseFloat(draft.received);
+  var changeBox = "";
+  if (draft.paid && draft.method === "cash" && draft.received !== "" && !isNaN(rec)){
+    var ch = rec - t;
+    changeBox = '<div class="change'+(ch<0?' neg':'')+'">'
+      + '<span>'+(ch<0?'Still short':'Change to give back')+'</span>'
+      + '<span>'+cur(Math.abs(ch))+'</span></div>';
+  }
+
+  return ''
+  + '<div class="card">' + lines
+  +   '<div class="totrow"><span class="l">Total</span><span class="r">'+cur(t)+'</span></div>'
+  + '</div>'
+
+  + '<div class="fgroup"><label class="fl">Pickup or delivery</label>'
+  +   '<div class="seg">'
+  +     '<button aria-pressed="'+(draft.type==="pickup")+'" onclick="setType(\'pickup\')">Pickup</button>'
+  +     '<button aria-pressed="'+(draft.type==="delivery")+'" onclick="setType(\'delivery\')">Delivery +'+money(db.settings.fee)+'</button>'
+  +   '</div></div>'
+
+  + '<div class="fgroup"><label class="fl">Customer</label>'
+  +   '<div class="fieldrow">'
+  +     '<input id="fName" list="custNames" placeholder="Name" value="'+esc(draft.name)+'" '
+  +       'oninput="draft.name=this.value" autocomplete="off">'
+  +     '<input id="fPhone" type="tel" inputmode="tel" placeholder="Phone" value="'+esc(draft.phone)+'" '
+  +       'oninput="draft.phone=this.value" onchange="fillFromPhone()">'
+  +   '</div>'
+  +   '<datalist id="custNames">'+names+'</datalist></div>'
+
+  + '<div class="fgroup"><label class="fl">Did they pay?</label>'
+  +   '<div class="seg pay">'
+  +     '<button aria-pressed="'+(draft.paid===true)+'" onclick="setPaid(true)">Paid</button>'
+  +     '<button aria-pressed="'+(draft.paid===false)+'" onclick="setPaid(false)">Not paid yet</button>'
+  +   '</div></div>'
+
+  + (draft.paid ? ''
+    + '<div class="fgroup"><label class="fl">How</label>'
+    +   '<div class="seg">'
+    +     '<button aria-pressed="'+(draft.method==="cash")+'" onclick="setMethod(\'cash\')">Cash</button>'
+    +     '<button aria-pressed="'+(draft.method==="card")+'" onclick="setMethod(\'card\')">Card</button>'
+    +   '</div></div>'
+    + (draft.method==="cash"
+      ? '<div class="fgroup"><label class="fl">Cash received (optional)</label>'
+        + '<input type="number" inputmode="decimal" step="0.01" placeholder="How much did they hand you?" '
+        + 'value="'+esc(draft.received)+'" oninput="draft.received=this.value;refreshCheckout()">'
+        + changeBox + '</div>'
+      : '')
+    : '')
+
+  + '<div class="fgroup"><label class="fl">Discount (optional)</label>'
+  +   '<input type="number" inputmode="decimal" step="0.01" placeholder="0" '
+  +     'value="'+esc(draft.discount||"")+'" oninput="draft.discount=this.value;refreshCheckout()"></div>'
+
+  + '<div class="fgroup"><label class="fl">Note (optional)</label>'
+  +   '<textarea rows="2" placeholder="No takis, extra sauce, gate code..." '
+  +     'oninput="draft.note=this.value">'+esc(draft.note)+'</textarea></div>'
+
+  + '<button class="btn primary" onclick="saveOrder()">Save order &middot; '+cur(t)+'</button>'
+  + '<p class="note">Not paid yet? Save it anyway. It lands in <b>Owed</b> until she gets the money.</p>';
+}
+function refreshCheckout(){
+  var body = document.getElementById("sheetBody");
+  var y = body.scrollTop;
+  body.innerHTML = checkoutHTML();
+  body.scrollTop = y;
+}
+function setType(t){
+  draft.type = t;
+  draft.fee = (t === "delivery") ? (+db.settings.fee||0) : 0;
+  refreshCheckout();
+}
+function setPaid(v){ draft.paid = v; if (!v) draft.received=""; refreshCheckout(); }
+function setMethod(m){ draft.method = m; refreshCheckout(); }
+function fillFromPhone(){
+  var d = String(draft.phone||"").replace(/\D/g,"");
+  if (d.length < 6) return;
+  var hit = uniqueCustomers().filter(function(c){
+    return String(c.phone||"").replace(/\D/g,"") === d;
+  })[0];
+  if (hit && !draft.name){ draft.name = hit.name; refreshCheckout(); }
+}
+function saveOrder(){
+  if (!cart.length) return;
+  var o = {
+    id: "o"+Date.now()+Math.random().toString(36).slice(2,6),
+    ts: Date.now(),
+    items: cart.map(function(l){ return { id:l.id, name:l.name, price:l.price, qty:l.qty }; }),
+    fee: +draft.fee || 0,
+    discount: +draft.discount || 0,
+    total: draftTotal(),
+    cust: { name:(draft.name||"").trim(), phone:(draft.phone||"").trim() },
+    type: draft.type,
+    paid: !!draft.paid,
+    method: draft.paid ? draft.method : null,
+    received: (draft.paid && draft.method==="cash" && draft.received!=="") ? +draft.received : null,
+    note: (draft.note||"").trim(),
+    done: false
+  };
+  db.orders.push(o);
+  save();
+  cart = []; draft = null;
+  closeSheet();
+  renderAll();
+  buzz(28);
+  toast(o.paid ? "Order saved and paid" : "Order saved, money still owed");
+}
+
+/* =====================================================================
+   ORDERS
+   ===================================================================== */
+function renderOrders(){
+  var list = todayOrders().slice().sort(function(a,b){ return b.ts - a.ts; });
+  var unpaid = list.filter(function(o){ return !o.paid; });
+  var open = list.filter(function(o){ return !o.done; });
+
+  var shown = list;
+  if (orderFilter === "unpaid")   shown = unpaid;
+  if (orderFilter === "open")     shown = open;
+  if (orderFilter === "delivery") shown = list.filter(function(o){ return o.type==="delivery"; });
+
+  var h = '<div class="chips">'
+    + chip("all","All ("+list.length+")")
+    + chip("open","To make ("+open.length+")")
+    + chip("unpaid","Owed ("+unpaid.length+")")
+    + chip("delivery","Delivery")
+    + '</div>';
+
+  if (!shown.length){
+    h += '<div class="card"><div class="empty">'
+       + (list.length ? "Nothing in this list." : "No orders yet today.<br>Go to <b>Sell</b> to take the first one.")
+       + '</div></div>';
+  } else {
+    h += '<div class="card">' + shown.map(orderRow).join("") + '</div>';
+  }
+  document.getElementById("p-orders").innerHTML = h;
+}
+function chip(v,label){
+  return '<button aria-pressed="'+(orderFilter===v)+'" onclick="orderFilter=\''+v+'\';renderOrders()">'
+    + esc(label) + '</button>';
+}
+function orderRow(o){
+  var who = o.cust.name || (o.cust.phone ? o.cust.phone : "Walk-in");
+  var what = o.items.map(function(l){ return l.qty+"x "+l.name; }).join(", ");
+  var tags = "";
+  if (!o.paid) tags += '<span class="tag due">Owes '+money(o.total)+'</span> ';
+  else tags += '<span class="tag paid">'+(o.method==="card"?"Card":"Cash")+'</span> ';
+  if (!o.done) tags += '<span class="tag open">To make</span> ';
+  if (o.type === "delivery") tags += '<span class="tag plain">Delivery</span>';
+  return '<button class="row" onclick="openOrder(\''+o.id+'\')">'
+    + '<div class="q">'+clock(o.ts).replace(":","​:")+'</div>'
+    + '<div class="nm">'+esc(who)+'<small>'+esc(what)+'</small>'
+    +   '<div style="margin-top:5px">'+tags+'</div></div>'
+    + '<div class="sub">'+money(o.total)+'</div></button>';
+}
+function findOrder(id){
+  for (var i=0;i<db.orders.length;i++) if (db.orders[i].id===id) return db.orders[i];
+  return null;
+}
+function openOrder(id){
+  var o = findOrder(id); if (!o) return;
+  openSheet("Order &middot; " + clock(o.ts), orderHTML(o));
+}
+function orderHTML(o){
+  var lines = o.items.map(function(l){
+    return '<div class="row"><div class="q">'+l.qty+'</div>'
+      + '<div class="nm">'+esc(l.name)+'<small>'+cur(l.price)+' each</small></div>'
+      + '<div class="sub">'+money(l.price*l.qty)+'</div></div>';
+  }).join("");
+  if (o.fee) lines += '<div class="row"><div class="q">+</div><div class="nm">Delivery</div>'
+    + '<div class="sub">'+money(o.fee)+'</div></div>';
+  if (o.discount) lines += '<div class="row"><div class="q">&minus;</div><div class="nm">Discount</div>'
+    + '<div class="sub">&minus;'+money(o.discount)+'</div></div>';
+
+  var who = o.cust.name || "Walk-in";
+  var wa = waLink(o.cust.phone, receiptText(o));
+
+  return ''
+  + '<div class="card">' + lines
+  +   '<div class="totrow"><span class="l">Total</span><span class="r">'+cur(o.total)+'</span></div>'
+  + '</div>'
+
+  + '<div class="card">'
+  +   '<div class="row"><div class="nm">Customer<small>'
+  +     esc(who) + (o.cust.phone ? " &middot; " + esc(o.cust.phone) : "")
+  +     '</small></div></div>'
+  +   '<div class="row"><div class="nm">Type<small>'
+  +     (o.type==="delivery"?"Delivery":"Pickup") + '</small></div></div>'
+  +   (o.received != null
+      ? '<div class="row"><div class="nm">Cash received<small>'+cur(o.received)
+        + ' &middot; change '+cur(Math.max(0,o.received-o.total))+'</small></div></div>' : '')
+  +   (o.note ? '<div class="row"><div class="nm">Note<small>'+esc(o.note)+'</small></div></div>' : '')
+  + '</div>'
+
+  + (o.paid
+     ? '<div class="card"><div class="row"><div class="nm">Paid<small>'
+       + (o.method==="card"?"Card":"Cash") + '</small></div>'
+       + '<span class="tag paid">Settled</span></div></div>'
+       + '<button class="btn ghost" onclick="unpay(\''+o.id+'\')">Mark as not paid</button>'
+     : '<div class="fgroup"><label class="fl">Take payment now</label><div class="seg pay">'
+       + '<button onclick="payOrder(\''+o.id+'\',\'cash\')">Paid cash</button>'
+       + '<button onclick="payOrder(\''+o.id+'\',\'card\')">Paid card</button>'
+       + '</div></div>')
+
+  + '<div class="actions">'
+  +   '<button class="btn" onclick="toggleDone(\''+o.id+'\')">'
+  +     (o.done ? "Move back to make" : "Mark as made") + '</button>'
+  +   (wa ? '<a class="btn" href="'+wa+'" target="_blank" rel="noopener">Send receipt</a>'
+         : '<button class="btn" disabled>No phone saved</button>')
+  +   '<button class="btn danger wide" onclick="deleteOrder(\''+o.id+'\')">Delete this order</button>'
+  + '</div>';
+}
+function receiptText(o){
+  var l = ["Tish's Kitchen", niceDate(dkeyOf(o.ts)) + " " + clock(o.ts), ""];
+  o.items.forEach(function(x){ l.push(x.qty+" x "+x.name+"   "+cur(x.price*x.qty)); });
+  if (o.fee) l.push("Delivery   "+cur(o.fee));
+  if (o.discount) l.push("Discount   -"+cur(o.discount));
+  l.push("");
+  l.push("TOTAL: "+cur(o.total));
+  l.push(o.paid ? ("Paid by "+(o.method==="card"?"card":"cash")+". Thank you!")
+                : ("Still to pay: "+cur(o.total)));
+  return l.join("\n");
+}
+function payOrder(id, method){
+  var o = findOrder(id); if (!o) return;
+  o.paid = true; o.method = method; save(); renderAll();
+  openOrder(id); buzz(24); toast("Marked paid by " + method);
+}
+function unpay(id){
+  var o = findOrder(id); if (!o) return;
+  o.paid = false; o.method = null; o.received = null; save(); renderAll(); openOrder(id);
+}
+function toggleDone(id){
+  var o = findOrder(id); if (!o) return;
+  o.done = !o.done; save(); renderAll(); openOrder(id);
+}
+function deleteOrder(id){
+  var o = findOrder(id); if (!o) return;
+  if (!confirm("Delete this order for "+cur(o.total)+"? This cannot be undone.")) return;
+  db.orders = db.orders.filter(function(x){ return x.id !== id; });
+  save(); closeSheet(); renderAll(); toast("Order deleted");
+}
+
+/* =====================================================================
+   MONEY
+   ===================================================================== */
+function renderMoney(){
+  var list = todayOrders();
+  var total = sum(list, function(o){ return o.total; });
+  var paid  = sum(list.filter(function(o){return o.paid;}), function(o){ return o.total; });
+  var due   = total - paid;
+  var cash  = sum(list.filter(function(o){return o.paid && o.method==="cash";}), function(o){ return o.total; });
+  var card  = sum(list.filter(function(o){return o.paid && o.method==="card";}), function(o){ return o.total; });
+  var avg   = list.length ? total/list.length : 0;
+
+  var h = "";
+
+  if (needsBackup()){
+    h += '<div class="banner"><span>&#9888;</span><div>These orders only live on this phone. '
+       + 'Save a backup so nothing is lost. '
+       + '<button onclick="backup()">Back up now</button></div></div>';
+  }
+
+  h += '<div class="hero"><div class="k">Today</div>'
+     + '<div class="v"><span>'+CUR+'</span>'+money(total)+'</div>'
+     + '<div class="sub"><div>Orders<b>'+list.length+'</b></div>'
+     + '<div>Average<b>'+cur(avg)+'</b></div></div></div>';
+
+  h += '<div class="stats">'
+     + '<div class="stat ok"><div class="k">In hand</div><div class="v">'+cur(paid)+'</div></div>'
+     + '<div class="stat'+(due?' due':'')+'"><div class="k">Still owed</div><div class="v">'+cur(due)+'</div></div>'
+     + '<div class="stat"><div class="k">Cash</div><div class="v">'+cur(cash)+'</div></div>'
+     + '<div class="stat"><div class="k">Card</div><div class="v">'+cur(card)+'</div></div>'
+     + '</div>';
+
+  if (due > 0){
+    h += '<button class="btn ghost" onclick="tab=\'orders\';orderFilter=\'unpaid\';renderAll()">'
+       + 'See who still owes ('+cur(due)+')</button><div style="height:12px"></div>';
+  }
+
+  /* what sold today */
+  var counts = {};
+  list.forEach(function(o){ o.items.forEach(function(l){
+    if (!counts[l.id]) counts[l.id] = { name:l.name, qty:0, val:0 };
+    counts[l.id].qty += l.qty; counts[l.id].val += l.qty*l.price;
+  }); });
+  var ids = Object.keys(counts).sort(function(a,b){ return counts[b].qty - counts[a].qty; });
+  if (ids.length){
+    var top = counts[ids[0]].qty;
+    h += '<h2 class="sec">What sold today</h2><div class="card">';
+    ids.forEach(function(id){
+      var c = counts[id];
+      h += '<div class="row"><div class="q">'+c.qty+'</div>'
+         + '<div class="nm">'+esc(c.name)
+         + '<div class="bar-mini"><i style="width:'+Math.round(c.qty/top*100)+'%"></i></div></div>'
+         + '<div class="sub">'+money(c.val)+'</div></div>';
+    });
+    h += '</div>';
+  }
+
+  h += '<div class="actions">'
+     + '<button class="btn" onclick="shareDay()">Send summary</button>'
+     + '<button class="btn" onclick="exportCSV()">Export CSV</button>'
+     + '</div>';
+
+  /* previous days */
+  var byDay = {};
+  db.orders.forEach(function(o){
+    var k = dkeyOf(o.ts);
+    if (k === dkey()) return;
+    (byDay[k] = byDay[k] || []).push(o);
+  });
+  var days = Object.keys(byDay).sort().reverse();
+  if (days.length){
+    var grand = 0, gdue = 0;
+    days.forEach(function(k){
+      grand += sum(byDay[k], function(o){ return o.total; });
+      gdue  += sum(byDay[k].filter(function(o){return !o.paid;}), function(o){ return o.total; });
+    });
+    h += '<h2 class="sec">Earlier days</h2>';
+    h += '<div class="card"><div class="totrow"><span class="l">'+days.length+(days.length===1?' earlier day':' earlier days')+'</span>'
+       + '<span class="r">'+cur(grand)+'</span></div></div>';
+    if (gdue > 0){
+      h += '<div class="card"><div class="row"><div class="nm">Still owed from earlier days</div>'
+         + '<span class="tag due">'+cur(gdue)+'</span></div></div>';
+    }
+    days.slice(0,60).forEach(function(k){
+      var l = byDay[k];
+      var t = sum(l, function(o){ return o.total; });
+      var d = sum(l.filter(function(o){return !o.paid;}), function(o){ return o.total; });
+      h += '<details class="card day"><summary><span>'+esc(shortDate(k))
+         + '<small>'+l.length+' orders'+(d?' &middot; '+cur(d)+' owed':'')+'</small></span>'
+         + '<span class="v">'+cur(t)+'</span></summary><div style="border-top:1px solid var(--line)">'
+         + l.slice().sort(function(a,b){return b.ts-a.ts;}).map(orderRow).join("")
+         + '</div></details>';
+    });
+  }
+  document.getElementById("p-money").innerHTML = h;
+}
+
+function shareDay(){
+  var list = todayOrders();
+  if (!list.length){ toast("Nothing to send yet"); return; }
+  var total = sum(list, function(o){ return o.total; });
+  var paid  = sum(list.filter(function(o){return o.paid;}), function(o){ return o.total; });
+  var cash  = sum(list.filter(function(o){return o.paid&&o.method==="cash";}), function(o){ return o.total; });
+  var card  = sum(list.filter(function(o){return o.paid&&o.method==="card";}), function(o){ return o.total; });
+  var counts = {};
+  list.forEach(function(o){ o.items.forEach(function(l){
+    counts[l.name] = (counts[l.name]||0) + l.qty;
+  }); });
+  var l = ["Tish's Kitchen", niceDate(dkey()), ""];
+  Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];})
+    .forEach(function(n){ l.push(counts[n]+" x "+n); });
+  l.push("");
+  l.push("Orders: "+list.length);
+  l.push("Total: "+cur(total));
+  l.push("Cash: "+cur(cash));
+  l.push("Card: "+cur(card));
+  if (total-paid > 0) l.push("Still owed: "+cur(total-paid));
+  var txt = l.join("\n");
+  if (navigator.share){ navigator.share({ text: txt }).catch(function(){}); return; }
+  copy(txt);
+}
+function copy(txt){
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ toast("Copied"); }, function(){ fallbackCopy(txt); });
   } else fallbackCopy(txt);
 }
 function fallbackCopy(txt){
   var ta = document.createElement("textarea");
   ta.value = txt; ta.style.position="fixed"; ta.style.opacity="0";
   document.body.appendChild(ta); ta.select();
-  try{ document.execCommand("copy"); toast("Summary copied"); }catch(e){ toast("Could not copy"); }
+  try{ document.execCommand("copy"); toast("Copied"); }catch(e){ toast("Could not copy"); }
   document.body.removeChild(ta);
 }
-function shareWhatsApp(k){
-  var list = db.days[k] || [];
-  window.open("https://wa.me/?text=" + encodeURIComponent(summaryText(k, list)), "_blank");
-}
-
-/* ============================================================
-   RENDER
-   ============================================================ */
-function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
-
-function renderSell(){
-  var c = counts(todayLog());
-  var h = "";
-  MENU.forEach(function(g){
-    h += '<h2 class="sec">' + esc(g.group) + '</h2><div class="grid">';
-    g.items.forEach(function(it){
-      var n = c[it.id] || 0;
-      var pic = it.img
-        ? '<img src="' + esc(it.img) + '" alt="">'
-        : esc(it.emoji);
-      h += '<button class="item" onclick="sell(\'' + it.id + '\')">'
-         +   '<div class="pic">' + pic
-         +     '<span class="badge"' + (n ? '' : ' hidden') + '>' + n + '</span>'
-         +   '</div>'
-         +   '<div class="body"><div class="nm">' + esc(it.name) + '</div>'
-         +     '<div class="pr">XCG ' + money(it.price) + '</div></div>'
-         + '</button>';
-    });
-    h += '</div>';
+function exportCSV(){
+  if (!db.orders.length){ toast("No orders yet"); return; }
+  var rows = [["Date","Time","Customer","Phone","Type","Items","Subtotal","Delivery","Discount","Total","Paid","Method","Note"]];
+  db.orders.slice().sort(function(a,b){return a.ts-b.ts;}).forEach(function(o){
+    rows.push([
+      dkeyOf(o.ts), clock(o.ts), o.cust.name||"", o.cust.phone||"",
+      o.type, o.items.map(function(l){return l.qty+"x "+l.name;}).join(" | "),
+      money(sum(o.items,function(l){return l.price*l.qty;})),
+      money(o.fee||0), money(o.discount||0), money(o.total),
+      o.paid ? "yes":"no", o.method||"", o.note||""
+    ]);
   });
-  h += '<p class="note">Tap a card each time one is sold. Everything is saved on this phone, even with no internet.</p>';
-  document.getElementById("p-sell").innerHTML = h;
+  var csv = rows.map(function(r){
+    return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(",");
+  }).join("\n");
+  download("tishs-kitchen-orders-"+dkey()+".csv", csv, "text/csv");
+}
+function download(fn, text, mime){
+  try{
+    var blob = new Blob([text], { type: mime+";charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = fn;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast("Saved to your downloads");
+  }catch(e){ copy(text); }
 }
 
-function renderToday(){
-  var l = todayLog(), c = counts(l), ids = Object.keys(c);
+/* =====================================================================
+   PEOPLE
+   ===================================================================== */
+function uniqueCustomers(){
+  var map = {};
+  db.orders.forEach(function(o){
+    var name = (o.cust.name||"").trim();
+    var phone = (o.cust.phone||"").trim();
+    if (!name && !phone) return;
+    var k = phone ? phone.replace(/\D/g,"") : "n:"+name.toLowerCase();
+    if (!map[k]) map[k] = { name:name, phone:phone, orders:0, spent:0, owed:0, last:0 };
+    var c = map[k];
+    if (name && !c.name) c.name = name;
+    if (phone && !c.phone) c.phone = phone;
+    c.orders++; c.spent += o.total;
+    if (!o.paid) c.owed += o.total;
+    if (o.ts > c.last) c.last = o.ts;
+  });
+  return Object.keys(map).map(function(k){ return map[k]; })
+    .sort(function(a,b){ return b.spent - a.spent; });
+}
+function renderPeople(){
+  var all = uniqueCustomers();
+  var q = peopleQuery.trim().toLowerCase();
+  var list = q ? all.filter(function(c){
+    return (c.name||"").toLowerCase().indexOf(q) >= 0
+        || (c.phone||"").replace(/\D/g,"").indexOf(q.replace(/\D/g,"")) >= 0;
+  }) : all;
+
+  var owed = sum(all, function(c){ return c.owed; });
   var h = "";
-  if(!ids.length){
-    h = '<div class="card"><div class="empty">No sales yet today.<br>Go to <b>Sell</b> and tap a meal to start.</div></div>';
-  } else {
-    ids.sort(function(a,b){ return c[b]-c[a]; });
-    h = '<div class="card">';
-    ids.forEach(function(id){
-      var price = 0;
-      for(var i=0;i<l.length;i++) if(l[i].i===id){ price = l[i].p; break; }
-      h += '<div class="row">'
-         +   '<div class="q">' + c[id] + '</div>'
-         +   '<div class="nm">' + esc(label(id)) + '<small>XCG ' + money(price) + ' each</small></div>'
-         +   '<div class="adj"><button onclick="removeOne(\'' + id + '\')" aria-label="one less">−</button>'
-         +     '<button onclick="addOne(\'' + id + '\')" aria-label="one more">+</button></div>'
-         +   '<div class="sub">' + money(c[id]*price) + '</div>'
-         + '</div>';
-    });
-    h += '<div class="totrow"><span class="l">Total today</span><span class="r">XCG ' + money(total(l)) + '</span></div></div>';
+
+  if (owed > 0){
+    h += '<div class="card"><div class="row"><div class="nm">Total still owed to Tish'
+       + '<small>Across everyone, all days</small></div>'
+       + '<span class="tag due">'+cur(owed)+'</span></div></div>';
   }
-  h += '<div class="actions">'
-     +   '<button class="btn" onclick="copySummary(\'' + dkey() + '\')"' + (l.length?'':' disabled') + '>Copy summary</button>'
-     +   '<button class="btn" onclick="shareWhatsApp(\'' + dkey() + '\')"' + (l.length?'':' disabled') + '>Send on WhatsApp</button>'
-     +   '<button class="btn primary wide" onclick="closeDay()"' + (l.length?'':' disabled') + '>Close the day</button>'
-     + '</div>'
-     + '<p class="note">Closing the day files it under History and resets the counter to zero.</p>';
-  document.getElementById("p-today").innerHTML = h;
-}
 
-function renderHistory(){
-  var keys = Object.keys(db.days).filter(function(k){
-    return db.days[k] && db.days[k].length && k !== dkey();
-  });
-  keys.sort().reverse();
-  var h = "";
-  if(!keys.length){
-    h = '<div class="card"><div class="empty">No closed days yet.<br>They show up here once you close a day.</div></div>';
+  h += '<div style="margin-bottom:12px"><input placeholder="Search name or phone" '
+     + 'value="'+esc(peopleQuery)+'" oninput="peopleQuery=this.value;renderPeople()"></div>';
+
+  if (!list.length){
+    h += '<div class="card"><div class="empty">'
+       + (all.length ? "Nobody matches that." : "No customers saved yet.<br>Add a name or phone when you take an order.")
+       + '</div></div>';
   } else {
-    var grand = 0, items = 0;
-    keys.forEach(function(k){ grand += total(db.days[k]); items += db.days[k].length; });
-    h += '<div class="card" style="margin-bottom:14px"><div class="totrow">'
-       +   '<span class="l">' + keys.length + ' day' + (keys.length>1?'s':'') + '  ·  ' + items + ' items</span>'
-       +   '<span class="r">XCG ' + money(grand) + '</span></div></div>';
-    keys.forEach(function(k){
-      var l = db.days[k], c = counts(l), ids = Object.keys(c);
-      ids.sort(function(a,b){ return c[b]-c[a]; });
-      h += '<details class="card day"><summary><span class="d">' + esc(shortDate(k.split("#")[0]))
-         + '<small>' + l.length + ' items</small></span><span class="v">XCG ' + money(total(l)) + '</span></summary>'
-         + '<div class="inner">';
-      ids.forEach(function(id){
-        var price = 0;
-        for(var i=0;i<l.length;i++) if(l[i].i===id){ price = l[i].p; break; }
-        h += '<div class="row"><div class="q">' + c[id] + '</div>'
-           +   '<div class="nm">' + esc(label(id)) + '</div>'
-           +   '<div class="sub">XCG ' + money(c[id]*price) + '</div></div>';
-      });
-      h += '<div class="row"><div class="nm"><button class="btn" style="padding:9px 12px;font-size:12.5px" onclick="copySummary(\'' + k + '\')">Copy summary</button></div></div>';
-      h += '</div></details>';
-    });
+    h += '<div class="card">' + list.map(function(c){
+      return '<button class="row" onclick="openCustomer(\''+esc(c.phone||c.name)+'\')">'
+        + '<div class="q">'+esc((c.name||"?").trim().charAt(0).toUpperCase())+'</div>'
+        + '<div class="nm">'+esc(c.name||c.phone)
+        +   '<small>'+c.orders+(c.orders===1?' order':' orders')+' &middot; last '+shortDate(dkeyOf(c.last))+'</small>'
+        +   (c.owed ? '<div style="margin-top:5px"><span class="tag due">Owes '+money(c.owed)+'</span></div>' : '')
+        + '</div>'
+        + '<div class="sub">'+money(c.spent)+'</div></button>';
+    }).join("") + '</div>';
   }
-  document.getElementById("p-history").innerHTML = h;
+  document.getElementById("p-people").innerHTML = h;
+}
+function openCustomer(key){
+  var c = uniqueCustomers().filter(function(x){ return (x.phone||x.name) === key; })[0];
+  if (!c) return;
+  var k = c.phone ? c.phone.replace(/\D/g,"") : null;
+  var mine = db.orders.filter(function(o){
+    if (k) return (o.cust.phone||"").replace(/\D/g,"") === k;
+    return (o.cust.name||"").toLowerCase() === (c.name||"").toLowerCase();
+  }).sort(function(a,b){ return b.ts - a.ts; });
+
+  var fav = {};
+  mine.forEach(function(o){ o.items.forEach(function(l){ fav[l.name] = (fav[l.name]||0)+l.qty; }); });
+  var favName = Object.keys(fav).sort(function(a,b){ return fav[b]-fav[a]; })[0];
+
+  var wa = waLink(c.phone, c.owed
+    ? "Hi "+(c.name||"")+", just a friendly reminder about your order at Tish's Kitchen. Outstanding: "+cur(c.owed)+". Thank you!"
+    : "Hi "+(c.name||"")+"! Thank you for ordering from Tish's Kitchen.");
+
+  var h = '<div class="stats">'
+    + '<div class="stat"><div class="k">Orders</div><div class="v">'+c.orders+'</div></div>'
+    + '<div class="stat"><div class="k">Spent</div><div class="v">'+cur(c.spent)+'</div></div>'
+    + (c.owed ? '<div class="stat due"><div class="k">Owes</div><div class="v">'+cur(c.owed)+'</div></div>' : '')
+    + (favName ? '<div class="stat"><div class="k">Usual</div><div class="v" style="font-size:14px;line-height:1.3">'+esc(favName)+'</div></div>' : '')
+    + '</div>';
+
+  if (c.phone) h += '<div class="card"><div class="row"><div class="nm">Phone<small>'+esc(c.phone)+'</small></div></div></div>';
+  if (wa) h += '<a class="btn primary" href="'+wa+'" target="_blank" rel="noopener">'
+    + (c.owed ? "Send a payment reminder" : "Message on WhatsApp") + '</a><div style="height:12px"></div>';
+
+  h += '<h2 class="sec">Their orders</h2><div class="card">' + mine.map(orderRow).join("") + '</div>';
+  openSheet(esc(c.name || c.phone), h);
 }
 
-function render(){
-  var l = todayLog();
-  document.getElementById("barTotal").textContent = money(total(l));
-  document.getElementById("barCount").textContent = l.length + (l.length === 1 ? " item" : " items");
-  document.getElementById("undoBtn").disabled = !l.length;
-  renderSell(); renderToday(); renderHistory();
+/* =====================================================================
+   MORE / SETTINGS
+   ===================================================================== */
+function renderMore(){
+  var h = '<h2 class="sec">Menu</h2><div class="card">'
+    + db.menu.map(function(m){
+        return '<button class="row" onclick="editItem(\''+esc(m.id)+'\')">'
+          + '<div class="q">'+(m.emoji||"•")+'</div>'
+          + '<div class="nm">'+esc(m.name)+'<small>'+esc(m.cat)+(m.off?" &middot; sold out":"")+'</small></div>'
+          + '<div class="sub">'+money(m.price)+'</div></button>';
+      }).join("")
+    + '</div>'
+    + '<button class="btn" onclick="editItem(null)">Add a new item</button>'
+
+    + '<h2 class="sec">Settings</h2><div class="card">'
+    + '<div class="row"><div class="nm">Delivery fee</div>'
+    +   '<div style="width:110px"><input type="number" inputmode="decimal" value="'+esc(db.settings.fee)+'" '
+    +   'onchange="db.settings.fee=+this.value||0;save();toast(\'Delivery fee saved\')"></div></div>'
+    + '<div class="row"><div class="nm">Phone country code<small>Used for WhatsApp links</small></div>'
+    +   '<div style="width:110px"><input value="'+esc(db.settings.cc)+'" '
+    +   'onchange="db.settings.cc=this.value.replace(/\\D/g,\'\')||\'599\';save();toast(\'Saved\')"></div></div>'
+    + '</div>'
+
+    + '<h2 class="sec">Keep your data safe</h2>'
+    + '<div class="card"><div class="row"><div class="nm">Last backup'
+    + '<small>'+(db.settings.backedUp ? shortDate(dkeyOf(db.settings.backedUp)) : "never")+'</small></div>'
+    + (needsBackup() ? '<span class="tag due">Due</span>' : '<span class="tag paid">OK</span>')
+    + '</div></div>'
+    + '<div class="actions">'
+    +   '<button class="btn primary" onclick="backup()">Save a backup</button>'
+    +   '<button class="btn" onclick="document.getElementById(\'restoreFile\').click()">Restore</button>'
+    +   '<input type="file" id="restoreFile" accept="application/json,.json" style="display:none" onchange="restore(this)">'
+    + '</div>'
+    + '<p class="note">Everything lives on this phone only. Nothing is sent anywhere. '
+    + 'A backup is one small file. Keep it in WhatsApp, email or Drive.</p>'
+
+    + '<h2 class="sec">Danger</h2>'
+    + '<button class="btn danger" onclick="wipe()">Erase everything</button>'
+    + '<p class="note">Tish\'s Kitchen &middot; tishxkitchen.com</p>';
+  document.getElementById("p-more").innerHTML = h;
 }
 
-var current = "sell";
-function show(name){
-  current = name;
-  ["sell","today","history"].forEach(function(n){
-    document.getElementById("p-" + n).hidden = (n !== name);
-    document.getElementById("tab-" + n).setAttribute("aria-selected", n === name ? "true" : "false");
+function editItem(id){
+  var m = id ? menuItem(id) : null;
+  var isNew = !m;
+  if (isNew) m = { id:"", name:"", price:"", cat:"Meals", emoji:"", img:"", off:false };
+  var h = ''
+    + '<div class="fgroup"><label class="fl">Name</label>'
+    +   '<input id="mName" value="'+esc(m.name)+'" placeholder="Pasta Chicken + Drink"></div>'
+    + '<div class="fieldrow">'
+    +   '<div class="fgroup"><label class="fl">Price ('+CUR+')</label>'
+    +     '<input id="mPrice" type="number" inputmode="decimal" step="0.01" value="'+esc(m.price)+'"></div>'
+    +   '<div class="fgroup"><label class="fl">Group</label>'
+    +     '<input id="mCat" value="'+esc(m.cat)+'" placeholder="Meals"></div>'
+    + '</div>'
+    + '<div class="fieldrow">'
+    +   '<div class="fgroup"><label class="fl">Emoji</label>'
+    +     '<input id="mEmoji" value="'+esc(m.emoji)+'" placeholder="🍝"></div>'
+    +   '<div class="fgroup"><label class="fl">Photo file</label>'
+    +     '<input id="mImg" value="'+esc(m.img)+'" placeholder="images/name.webp"></div>'
+    + '</div>'
+    + '<div class="fgroup"><label class="fl">Availability</label><div class="seg">'
+    +   '<button id="mOn" aria-pressed="'+(!m.off)+'" onclick="segPick(this)">For sale</button>'
+    +   '<button id="mOff" aria-pressed="'+(!!m.off)+'" onclick="segPick(this)">Sold out</button>'
+    + '</div></div>'
+    + '<button class="btn primary" onclick="saveItem('+(id?"'"+esc(id)+"'":"null")+')">'
+    +   (isNew ? "Add to menu" : "Save changes") + '</button>'
+    + (isNew ? '' : '<div style="height:10px"></div><button class="btn danger" onclick="removeItem(\''+esc(id)+'\')">Remove from menu</button>')
+    + '<p class="note">Removing an item does not change orders already taken.</p>';
+  openSheet(isNew ? "New menu item" : "Edit item", h);
+}
+function segPick(btn){
+  var wrap = btn.parentNode;
+  [].forEach.call(wrap.children, function(b){ b.setAttribute("aria-pressed", b===btn ? "true":"false"); });
+}
+function saveItem(id){
+  var name = document.getElementById("mName").value.trim();
+  var price = parseFloat(document.getElementById("mPrice").value);
+  if (!name){ toast("Give it a name"); return; }
+  if (isNaN(price) || price < 0){ toast("Give it a price"); return; }
+  var data = {
+    name: name, price: price,
+    cat: document.getElementById("mCat").value.trim() || "Other",
+    emoji: document.getElementById("mEmoji").value.trim(),
+    img: document.getElementById("mImg").value.trim(),
+    off: document.getElementById("mOff").getAttribute("aria-pressed") === "true"
+  };
+  if (id){
+    var m = menuItem(id);
+    if (m){ m.name=data.name; m.price=data.price; m.cat=data.cat;
+            m.emoji=data.emoji; m.img=data.img; m.off=data.off; }
+  } else {
+    var slug = name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") || ("item"+Date.now());
+    var base = slug, n = 2;
+    while (menuItem(slug)){ slug = base + "-" + (n++); }
+    data.id = slug;
+    db.menu.push(data);
+  }
+  save(); closeSheet(); renderAll(); toast("Menu updated");
+}
+function removeItem(id){
+  var m = menuItem(id); if (!m) return;
+  if (!confirm("Remove " + m.name + " from the menu?")) return;
+  db.menu = db.menu.filter(function(x){ return x.id !== id; });
+  cart = cart.filter(function(l){ return l.id !== id; });
+  save(); closeSheet(); renderAll(); toast("Removed");
+}
+
+/* ---------- backup ---------- */
+function needsBackup(){
+  if (!db.orders.length) return false;
+  var week = 7*24*60*60*1000;
+  return !db.settings.backedUp || (Date.now() - db.settings.backedUp) > week;
+}
+function backup(){
+  var payload = JSON.stringify(db);
+  db.settings.backedUp = Date.now(); save();
+  download("tishs-kitchen-backup-"+dkey()+".json", payload, "application/json");
+  renderAll();
+}
+function restore(input){
+  var f = input.files && input.files[0];
+  if (!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var p = JSON.parse(r.result);
+      if (!p || !p.orders) throw 0;
+      if (!confirm("Replace everything on this phone with the backup? "
+        + p.orders.length + " orders will be loaded.")) return;
+      db = p;
+      db.settings = db.settings || { fee:10, cc:"599", backedUp:0 };
+      if (!db.menu || !db.menu.length) db.menu = DEFAULT_MENU.slice();
+      save(); renderAll(); toast("Backup restored");
+    }catch(e){ toast("That file is not a Tish's Kitchen backup"); }
+  };
+  r.readAsText(f);
+  input.value = "";
+}
+function wipe(){
+  if (!confirm("Erase every order, customer and menu change on this phone?")) return;
+  if (!confirm("Really? There is no undo. Make a backup first if you are not sure.")) return;
+  localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY);
+  db = { v:2, orders:[], menu:DEFAULT_MENU.slice(), settings:{ fee:10, cc:"599", backedUp:0 } };
+  cart = []; save(); closeSheet(); renderAll(); toast("Everything erased");
+}
+
+/* =====================================================================
+   SHEET + NAV
+   ===================================================================== */
+var sheetOpen = null;
+function openSheet(title, html){
+  sheetOpen = (title === "New order") ? "checkout" : "other";
+  document.getElementById("sheetTitle").innerHTML = title;
+  document.getElementById("sheetBody").innerHTML = html;
+  document.getElementById("sheetBody").scrollTop = 0;
+  document.getElementById("sheet").classList.add("show");
+  document.getElementById("scrim").classList.add("show");
+}
+function closeSheet(){
+  sheetOpen = null;
+  document.getElementById("sheet").classList.remove("show");
+  document.getElementById("scrim").classList.remove("show");
+}
+
+var TABS = [
+  { id:"sell",   label:"Sell",   icon:'<circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/><path d="M2.5 3h2.2l2.3 11.2a2 2 0 0 0 2 1.6h7.9a2 2 0 0 0 2-1.6L21 7H6"/>' },
+  { id:"orders", label:"Orders", icon:'<path d="M8 3h8a2 2 0 0 1 2 2v15l-6-3-6 3V5a2 2 0 0 1 2-2z"/><path d="M9 8h6M9 12h4"/>' },
+  { id:"money",  label:"Money",  icon:'<path d="M12 2v20"/><path d="M17 6.5C17 4.6 14.8 3.5 12 3.5S7 4.6 7 6.5s2.2 2.8 5 3.4 5 1.5 5 3.6-2.2 3-5 3-5-1.1-5-3"/>' },
+  { id:"people", label:"People", icon:'<circle cx="9" cy="8" r="3.4"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 5.6a3.4 3.4 0 0 1 0 6.6"/><path d="M18 14.4a6.5 6.5 0 0 1 3.5 5.6"/>' },
+  { id:"more",   label:"More",   icon:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>' }
+];
+function renderNav(){
+  var unpaid = db.orders.filter(function(o){ return !o.paid; }).length;
+  var open = todayOrders().filter(function(o){ return !o.done; }).length;
+  document.getElementById("nav").innerHTML = TABS.map(function(t){
+    var n = t.id==="orders" ? open : (t.id==="people" ? unpaid : 0);
+    return '<button aria-selected="'+(tab===t.id)+'" onclick="go(\''+t.id+'\')">'
+      + '<svg viewBox="0 0 24 24">'+t.icon+'</svg>'
+      + '<span>'+t.label+'</span>'
+      + '<span class="dot"'+(n?'':' hidden')+'>'+n+'</span></button>';
+  }).join("");
+}
+function go(id){
+  tab = id;
+  ["sell","orders","money","people","more"].forEach(function(x){
+    document.getElementById("p-"+x).hidden = (x !== id);
   });
+  renderAll();
   window.scrollTo(0,0);
 }
 
-/* ============================================================
-   START
-   ============================================================ */
-load();
-document.getElementById("today").textContent = niceDate(dkey());
-render();
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function renderAll(){
+  document.getElementById("todayLbl").textContent = niceDate(dkey());
+  var t = sum(todayOrders(), function(o){ return o.total; });
+  document.getElementById("hdrTotal").textContent = cur(t);
+  if (tab==="sell")   renderSell();
+  if (tab==="orders") renderOrders();
+  if (tab==="money")  renderMoney();
+  if (tab==="people") renderPeople();
+  if (tab==="more")   renderMore();
+  renderNav();
+  renderCartBar();
+}
 
-// If the phone is left open overnight, roll over to the new day.
+/* =====================================================================
+   START
+   ===================================================================== */
+load();
+go("sell");
+
+/* roll over at midnight if the phone is left open */
 setInterval(function(){
-  var t = document.getElementById("today").textContent;
-  if(t !== niceDate(dkey())){
-    document.getElementById("today").textContent = niceDate(dkey());
-    render();
-  }
+  if (document.getElementById("todayLbl").textContent !== niceDate(dkey())) renderAll();
 }, 60000);
 </script>
 </body>
