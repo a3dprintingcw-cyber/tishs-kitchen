@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tish's Kitchen POS</title>
+<meta name="description" content="Order counter and daily sales register for Tish's Kitchen.">
+<meta name="theme-color" content="#f5a7bf">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tish's Kitchen">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --pink:#f5a7bf;
+    --pink-deep:#e0789a;
+    --pink-soft:#fbd5e0;
+    --cream:#fff7fa;
+    --ink:#3b2a31;
+    --muted:#9b8189;
+    --line:#f2dde4;
+    --card:#ffffff;
+    --ok:#3f9d6d;
+    --shadow:0 2px 10px rgba(186,118,142,.10);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Avenir Next","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+    background:var(--cream);color:var(--ink);
+    padding-bottom:96px;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+
+  /* ---------- header ---------- */
+  header{
+    position:sticky;top:0;z-index:20;
+    background:var(--pink-soft);
+    padding:14px 16px 0;
+    padding-top:calc(14px + env(safe-area-inset-top));
+    border-bottom:1px solid rgba(224,122,154,.18);
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand img{width:46px;height:46px;border-radius:14px;display:block;box-shadow:var(--shadow)}
+  .brand h1{margin:0;font-size:19px;letter-spacing:.2px;font-weight:700}
+  .brand .date{margin:2px 0 0;font-size:12.5px;color:#a8707f;font-weight:600}
+  .tabs{display:flex;gap:6px;margin-top:12px}
+  .tabs button{
+    flex:1;padding:10px 6px;border-radius:12px 12px 0 0;
+    font-size:13.5px;font-weight:700;color:#b07c8c;background:rgba(255,255,255,.45)
+  }
+  .tabs button[aria-selected="true"]{background:var(--cream);color:var(--ink)}
+
+  /* ---------- layout ---------- */
+  main{padding:16px 14px 8px;max-width:760px;margin:0 auto}
+  .panel[hidden]{display:none}
+  h2.sec{
+    margin:22px 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:800
+  }
+  h2.sec:first-child{margin-top:4px}
+
+  /* ---------- item grid ---------- */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}
+  @media(min-width:620px){.grid{grid-template-columns:repeat(3,1fr)}}
+  .item{
+    position:relative;background:var(--card);border-radius:18px;overflow:hidden;
+    box-shadow:var(--shadow);text-align:left;display:flex;flex-direction:column;
+    transition:transform .12s ease;border:1px solid var(--line)
+  }
+  .item:active{transform:scale(.96)}
+  .item .pic{
+    height:112px;background:var(--pink-soft);display:flex;align-items:center;justify-content:center;
+    font-size:34px;line-height:1;position:relative
+  }
+  .item .pic img{width:100%;height:100%;object-fit:cover;display:block}
+  .item .body{padding:9px 11px 11px}
+  .item .nm{font-size:13.5px;font-weight:700;line-height:1.25;min-height:34px}
+  .item .pr{margin-top:5px;font-size:12.5px;font-weight:800;color:#c9738f}
+  .badge{
+    position:absolute;top:7px;right:7px;min-width:26px;height:26px;border-radius:13px;
+    background:var(--ink);color:#fff;font-size:13px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;padding:0 7px;
+    box-shadow:0 2px 6px rgba(0,0,0,.2)
+  }
+  .badge[hidden]{display:none}
+
+  /* ---------- bottom bar ---------- */
+  .bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    background:#fff;border-top:1px solid var(--line);
+    box-shadow:0 -3px 14px rgba(186,118,142,.12);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    display:flex;align-items:center;gap:12px
+  }
+  .bar .tot{flex:1}
+  .bar .tot .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:800}
+  .bar .tot .amt{font-size:25px;font-weight:800;line-height:1.1}
+  .bar .tot .amt span{font-size:13px;color:var(--muted);font-weight:700;margin-right:3px}
+  .bar .cnt{font-size:11.5px;color:var(--muted);font-weight:700;margin-top:1px}
+  .undo{
+    padding:11px 16px;border-radius:14px;background:var(--pink-soft);
+    font-size:13.5px;font-weight:800;color:#a8566f
+  }
+  .undo:disabled{opacity:.4}
+
+  /* ---------- toast ---------- */
+  #toast{
+    position:fixed;left:50%;bottom:104px;transform:translateX(-50%) translateY(14px);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;
+    font-size:14px;font-weight:700;opacity:0;pointer-events:none;
+    transition:opacity .18s ease,transform .18s ease;z-index:40;white-space:nowrap;
+    max-width:92vw;overflow:hidden;text-overflow:ellipsis
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ---------- receipt ---------- */
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+  .row{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .q{
+    min-width:30px;height:30px;border-radius:10px;background:var(--pink-soft);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex:0 0 auto
+  }
+  .row .nm{flex:1;font-size:14px;font-weight:600;line-height:1.3}
+  .row .nm small{display:block;color:var(--muted);font-weight:600;font-size:11.5px;margin-top:1px}
+  .row .sub{font-size:14px;font-weight:800;white-space:nowrap}
+  .row .adj{display:flex;gap:6px;flex:0 0 auto}
+  .row .adj button{
+    width:30px;height:30px;border-radius:10px;background:var(--cream);
+    border:1px solid var(--line);font-weight:800;font-size:15px;line-height:1;color:#a8566f
+  }
+  .totrow{display:flex;align-items:baseline;justify-content:space-between;padding:14px 13px;background:var(--pink-soft)}
+  .totrow .l{font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:#a8707f}
+  .totrow .r{font-size:24px;font-weight:800}
+  .empty{padding:34px 16px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+  .btn{
+    padding:14px;border-radius:15px;font-size:14px;font-weight:800;text-align:center;
+    background:#fff;border:1px solid var(--line);box-shadow:var(--shadow)
+  }
+  .btn.primary{background:var(--pink);color:#fff;border-color:var(--pink)}
+  .btn.wide{grid-column:1 / -1}
+  .btn:disabled{opacity:.45}
+
+  /* ---------- history ---------- */
+  .day{margin-bottom:10px}
+  .day summary{
+    list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+    gap:10px;padding:14px 13px;font-weight:700;font-size:14px
+  }
+  .day summary::-webkit-details-marker{display:none}
+  .day summary .d small{display:block;color:var(--muted);font-weight:600;font-size:11.5px;margin-top:2px}
+  .day summary .v{font-weight:800;font-size:16px;white-space:nowrap}
+  .day .inner{border-top:1px solid var(--line)}
+  .note{font-size:12px;color:var(--muted);line-height:1.6;margin:14px 2px 0;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <img src="icon-192.png" alt="Tish's Kitchen">
+    <div>
+      <h1>Tish's Kitchen</h1>
+      <p class="date" id="today"></p>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-sell" aria-selected="true" onclick="show('sell')">Sell</button>
+    <button role="tab" id="tab-today" aria-selected="false" onclick="show('today')">Today</button>
+    <button role="tab" id="tab-history" aria-selected="false" onclick="show('history')">History</button>
+  </nav>
+</header>
+
+<main>
+  <section class="panel" id="p-sell"></section>
+  <section class="panel" id="p-today" hidden></section>
+  <section class="panel" id="p-history" hidden></section>
+</main>
+
+<div class="bar">
+  <div class="tot">
+    <div class="lbl">Today</div>
+    <div class="amt"><span>XCG</span><b id="barTotal">0</b></div>
+    <div class="cnt" id="barCount">0 items</div>
+  </div>
+  <button class="undo" id="undoBtn" onclick="undo()">Undo</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================================================
+   MENU
+   To add a photo later: put the file in the images folder and
+   set img to its name, for example  img:"images/pasta-porkchop.jpg"
+   Leave img empty to keep the emoji placeholder.
+   ============================================================ */
+var MENU = [
+  { group:"Meals  ·  XCG 35", items:[
+    { id:"pasta-porkchop",  name:"Pasta Porkchop + Drink",          price:35, emoji:"🍝", img:"images/pasta-porkchop.webp" },
+    { id:"pasta-chicken",   name:"Pasta Chicken + Drink",           price:35, emoji:"🍝", img:"images/pasta-chicken.webp" },
+    { id:"burrito-chicken", name:"Burrito Chicken, Takis + Drink",  price:35, emoji:"🌯", img:"images/burrito-chicken.webp" }
+  ]},
+  { group:"Cake Cups  ·  XCG 15", items:[
+    { id:"biscoff-cup",     name:"Biscoff Cookie Cake Cup",         price:15, emoji:"🍪", img:"images/biscoff-cup.webp" },
+    { id:"tresleches-cup",  name:"Strawberry Tres Leches Cup",      price:15, emoji:"🍓", img:"images/tresleches-cup.webp" }
+  ]},
+  { group:"Drinks on their own  ·  XCG 5", items:[
+    { id:"strawberry-lemonade", name:"Strawberry Lemonade",         price:5,  emoji:"🍹", img:"images/strawberry-lemonade.webp" },
+    { id:"peachy",              name:"Peachy",                      price:5,  emoji:"🍑", img:"images/peachy.webp" }
+  ]},
+  { group:"Extra", items:[
+    { id:"delivery",        name:"Delivery Fee",                    price:10, emoji:"🛵", img:"" }
+  ]}
+];
+
+var ITEM = {};
+MENU.forEach(function(g){ g.items.forEach(function(it){ ITEM[it.id] = it; }); });
+
+/* ============================================================
+   STORAGE
+   ============================================================ */
+var KEY = "tishskitchen.v1";
+var db = { v:1, days:{} };
+
+function load(){
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(raw){ var p = JSON.parse(raw); if(p && p.days) db = p; }
+  }catch(e){}
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){}
+}
+function dkey(d){
+  d = d || new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function log(k){ if(!db.days[k]) db.days[k] = []; return db.days[k]; }
+function todayLog(){ return log(dkey()); }
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function money(n){ return (Math.round(n*100)/100) % 1 === 0 ? String(n) : n.toFixed(2); }
+function total(list){ var s = 0; for(var i=0;i<list.length;i++) s += list[i].p; return s; }
+function counts(list){
+  var c = {};
+  for(var i=0;i<list.length;i++) c[list[i].i] = (c[list[i].i]||0) + 1;
+  return c;
+}
+function niceDate(k){
+  var p = k.split("-");
+  var d = new Date(+p[0], +p[1]-1, +p[2]);
+  return d.toLocaleDateString("en-GB",{weekday:"long", day:"numeric", month:"long", year:"numeric"});
+}
+function shortDate(k){
+  var p = k.split("-");
+  var d = new Date(+p[0], +p[1]-1, +p[2]);
+  return d.toLocaleDateString("en-GB",{weekday:"short", day:"numeric", month:"short"});
+}
+function label(id){ return ITEM[id] ? ITEM[id].name : id; }
+
+var toastTimer;
+function toast(msg){
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 1400);
+}
+function buzz(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms||18); }catch(e){} }
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+function sell(id){
+  var it = ITEM[id]; if(!it) return;
+  todayLog().push({ i:id, p:it.price, t:Date.now() });
+  save(); render();
+  buzz(18);
+  toast("+ XCG " + money(it.price) + "   " + it.name);
+}
+function undo(){
+  var l = todayLog();
+  if(!l.length) return;
+  var last = l.pop();
+  save(); render();
+  buzz(30);
+  toast("Removed " + label(last.i));
+}
+function removeOne(id){
+  var l = todayLog();
+  for(var i = l.length - 1; i >= 0; i--){
+    if(l[i].i === id){ l.splice(i,1); break; }
+  }
+  save(); render(); buzz(30);
+}
+function addOne(id){ sell(id); }
+
+function closeDay(){
+  var l = todayLog();
+  if(!l.length){ toast("Nothing to close yet"); return; }
+  if(!confirm("Close " + niceDate(dkey()) + " with XCG " + money(total(l)) + "?\n\nThe day is saved in History and the counter goes back to zero.")) return;
+  var n = 1;
+  while(db.days[dkey() + "#" + n]) n++;
+  db.days[dkey() + "#" + n] = l;
+  db.days[dkey()] = [];
+  save(); render(); show("history");
+  toast("Day closed. Ready for a new one.");
+}
+
+function summaryText(k, list){
+  var c = counts(list), lines = [], ids = Object.keys(c);
+  ids.sort(function(a,b){ return c[b]-c[a]; });
+  lines.push("Tish's Kitchen  ·  " + niceDate(k.split("#")[0]));
+  lines.push("");
+  ids.forEach(function(id){
+    var price = 0;
+    for(var i=0;i<list.length;i++) if(list[i].i===id){ price = list[i].p; break; }
+    lines.push(c[id] + " x " + label(id) + "   XCG " + money(c[id]*price));
+  });
+  lines.push("");
+  lines.push("Items sold: " + list.length);
+  lines.push("TOTAL: XCG " + money(total(list)));
+  return lines.join("\n");
+}
+function copySummary(k){
+  var list = db.days[k] || [];
+  var txt = summaryText(k, list);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ toast("Summary copied"); },
+                                            function(){ fallbackCopy(txt); });
+  } else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  var ta = document.createElement("textarea");
+  ta.value = txt; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); toast("Summary copied"); }catch(e){ toast("Could not copy"); }
+  document.body.removeChild(ta);
+}
+function shareWhatsApp(k){
+  var list = db.days[k] || [];
+  window.open("https://wa.me/?text=" + encodeURIComponent(summaryText(k, list)), "_blank");
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+function renderSell(){
+  var c = counts(todayLog());
+  var h = "";
+  MENU.forEach(function(g){
+    h += '<h2 class="sec">' + esc(g.group) + '</h2><div class="grid">';
+    g.items.forEach(function(it){
+      var n = c[it.id] || 0;
+      var pic = it.img
+        ? '<img src="' + esc(it.img) + '" alt="">'
+        : esc(it.emoji);
+      h += '<button class="item" onclick="sell(\'' + it.id + '\')">'
+         +   '<div class="pic">' + pic
+         +     '<span class="badge"' + (n ? '' : ' hidden') + '>' + n + '</span>'
+         +   '</div>'
+         +   '<div class="body"><div class="nm">' + esc(it.name) + '</div>'
+         +     '<div class="pr">XCG ' + money(it.price) + '</div></div>'
+         + '</button>';
+    });
+    h += '</div>';
+  });
+  h += '<p class="note">Tap a card each time one is sold. Everything is saved on this phone, even with no internet.</p>';
+  document.getElementById("p-sell").innerHTML = h;
+}
+
+function renderToday(){
+  var l = todayLog(), c = counts(l), ids = Object.keys(c);
+  var h = "";
+  if(!ids.length){
+    h = '<div class="card"><div class="empty">No sales yet today.<br>Go to <b>Sell</b> and tap a meal to start.</div></div>';
+  } else {
+    ids.sort(function(a,b){ return c[b]-c[a]; });
+    h = '<div class="card">';
+    ids.forEach(function(id){
+      var price = 0;
+      for(var i=0;i<l.length;i++) if(l[i].i===id){ price = l[i].p; break; }
+      h += '<div class="row">'
+         +   '<div class="q">' + c[id] + '</div>'
+         +   '<div class="nm">' + esc(label(id)) + '<small>XCG ' + money(price) + ' each</small></div>'
+         +   '<div class="adj"><button onclick="removeOne(\'' + id + '\')" aria-label="one less">−</button>'
+         +     '<button onclick="addOne(\'' + id + '\')" aria-label="one more">+</button></div>'
+         +   '<div class="sub">' + money(c[id]*price) + '</div>'
+         + '</div>';
+    });
+    h += '<div class="totrow"><span class="l">Total today</span><span class="r">XCG ' + money(total(l)) + '</span></div></div>';
+  }
+  h += '<div class="actions">'
+     +   '<button class="btn" onclick="copySummary(\'' + dkey() + '\')"' + (l.length?'':' disabled') + '>Copy summary</button>'
+     +   '<button class="btn" onclick="shareWhatsApp(\'' + dkey() + '\')"' + (l.length?'':' disabled') + '>Send on WhatsApp</button>'
+     +   '<button class="btn primary wide" onclick="closeDay()"' + (l.length?'':' disabled') + '>Close the day</button>'
+     + '</div>'
+     + '<p class="note">Closing the day files it under History and resets the counter to zero.</p>';
+  document.getElementById("p-today").innerHTML = h;
+}
+
+function renderHistory(){
+  var keys = Object.keys(db.days).filter(function(k){
+    return db.days[k] && db.days[k].length && k !== dkey();
+  });
+  keys.sort().reverse();
+  var h = "";
+  if(!keys.length){
+    h = '<div class="card"><div class="empty">No closed days yet.<br>They show up here once you close a day.</div></div>';
+  } else {
+    var grand = 0, items = 0;
+    keys.forEach(function(k){ grand += total(db.days[k]); items += db.days[k].length; });
+    h += '<div class="card" style="margin-bottom:14px"><div class="totrow">'
+       +   '<span class="l">' + keys.length + ' day' + (keys.length>1?'s':'') + '  ·  ' + items + ' items</span>'
+       +   '<span class="r">XCG ' + money(grand) + '</span></div></div>';
+    keys.forEach(function(k){
+      var l = db.days[k], c = counts(l), ids = Object.keys(c);
+      ids.sort(function(a,b){ return c[b]-c[a]; });
+      h += '<details class="card day"><summary><span class="d">' + esc(shortDate(k.split("#")[0]))
+         + '<small>' + l.length + ' items</small></span><span class="v">XCG ' + money(total(l)) + '</span></summary>'
+         + '<div class="inner">';
+      ids.forEach(function(id){
+        var price = 0;
+        for(var i=0;i<l.length;i++) if(l[i].i===id){ price = l[i].p; break; }
+        h += '<div class="row"><div class="q">' + c[id] + '</div>'
+           +   '<div class="nm">' + esc(label(id)) + '</div>'
+           +   '<div class="sub">XCG ' + money(c[id]*price) + '</div></div>';
+      });
+      h += '<div class="row"><div class="nm"><button class="btn" style="padding:9px 12px;font-size:12.5px" onclick="copySummary(\'' + k + '\')">Copy summary</button></div></div>';
+      h += '</div></details>';
+    });
+  }
+  document.getElementById("p-history").innerHTML = h;
+}
+
+function render(){
+  var l = todayLog();
+  document.getElementById("barTotal").textContent = money(total(l));
+  document.getElementById("barCount").textContent = l.length + (l.length === 1 ? " item" : " items");
+  document.getElementById("undoBtn").disabled = !l.length;
+  renderSell(); renderToday(); renderHistory();
+}
+
+var current = "sell";
+function show(name){
+  current = name;
+  ["sell","today","history"].forEach(function(n){
+    document.getElementById("p-" + n).hidden = (n !== name);
+    document.getElementById("tab-" + n).setAttribute("aria-selected", n === name ? "true" : "false");
+  });
+  window.scrollTo(0,0);
+}
+
+/* ============================================================
+   START
+   ============================================================ */
+load();
+document.getElementById("today").textContent = niceDate(dkey());
+render();
+
+// If the phone is left open overnight, roll over to the new day.
+setInterval(function(){
+  var t = document.getElementById("today").textContent;
+  if(t !== niceDate(dkey())){
+    document.getElementById("today").textContent = niceDate(dkey());
+    render();
+  }
+}, 60000);
+</script>
+</body>
+</html>
