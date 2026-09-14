@@ -196,6 +196,10 @@
   .hero .v span{font-size:16px;opacity:.85;margin-right:5px}
   .hero .sub{margin-top:12px;display:flex;gap:18px;font-size:12.5px;font-weight:700}
   .hero .sub b{display:block;font-size:16px;margin-top:1px}
+  .hero.win{background:linear-gradient(160deg,#5cc492,#2f9e68)}
+  .hero.loss{background:linear-gradient(160deg,#e88b95,#cf4f5f)}
+  .dbar{height:7px;border-radius:4px;background:var(--pink-wash);overflow:hidden;margin-top:7px}
+  .dbar i{display:block;height:100%;border-radius:4px;min-width:3px}
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
   .stat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:13px;
     box-shadow:var(--shadow)}
@@ -314,7 +318,7 @@ var DEFAULT_MENU = [
   { id:"peachy",              name:"Peachy",                         price:5,  cat:"Drinks",    emoji:"🍑", img:"images/peachy.webp",              off:false }
 ];
 
-var db = { v:2, orders:[], menu:null, settings:{ fee:10, cc:"599", backedUp:0 } };
+var db = { v:2, orders:[], costs:[], menu:null, settings:{ fee:10, cc:"599", backedUp:0 } };
 var cart = [];
 var tab = "sell";
 var orderFilter = "all";
@@ -331,6 +335,7 @@ function load(){
       if (p && p.orders){
         db = p;
         db.settings = db.settings || { fee:10, cc:"599", backedUp:0 };
+        if (!db.costs) db.costs = [];
         if (db.settings.fee == null) db.settings.fee = 10;
         if (!db.settings.cc) db.settings.cc = "599";
         if (!db.menu || !db.menu.length) db.menu = DEFAULT_MENU.slice();
@@ -518,7 +523,7 @@ var draft = null;
 function openCheckout(keep){
   if (!cart.length){ toast("Add something first"); return; }
   if (!keep || !draft){
-    draft = { name:"", phone:"", type:"pickup", fee:0, discount:0,
+    draft = { name:"", phone:"", addr:"", type:"pickup", fee:0, discount:0,
               paid:true, method:"cash", received:"", note:"" };
   }
   openSheet("New order", checkoutHTML());
@@ -571,6 +576,12 @@ function checkoutHTML(){
   +       'oninput="draft.phone=this.value" onchange="fillFromPhone()">'
   +   '</div>'
   +   '<datalist id="custNames">'+names+'</datalist></div>'
+
+  + (draft.type==="delivery"
+    ? '<div class="fgroup"><label class="fl">Where to deliver</label>'
+      + '<textarea rows="2" placeholder="Street, house number, area, landmark" '
+      + 'oninput="draft.addr=this.value">'+esc(draft.addr)+'</textarea></div>'
+    : '')
 
   + '<div class="fgroup"><label class="fl">Did they pay?</label>'
   +   '<div class="seg pay">'
@@ -633,7 +644,8 @@ function saveOrder(){
     fee: +draft.fee || 0,
     discount: +draft.discount || 0,
     total: draftTotal(),
-    cust: { name:(draft.name||"").trim(), phone:(draft.phone||"").trim() },
+    cust: { name:(draft.name||"").trim(), phone:(draft.phone||"").trim(),
+            addr:(draft.type==="delivery" ? (draft.addr||"").trim() : "") },
     type: draft.type,
     paid: !!draft.paid,
     method: draft.paid ? draft.method : null,
@@ -730,6 +742,10 @@ function orderHTML(o){
   +     '</small></div></div>'
   +   '<div class="row"><div class="nm">Type<small>'
   +     (o.type==="delivery"?"Delivery":"Pickup") + '</small></div></div>'
+  +   (o.cust.addr ? '<div class="row"><div class="nm">Address<small>'
+        + esc(o.cust.addr) + '</small></div>'
+        + '<a class="tag plain" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query='
+        + encodeURIComponent(o.cust.addr) + '">Map</a></div>' : '')
   +   (o.received != null
       ? '<div class="row"><div class="nm">Cash received<small>'+cur(o.received)
         + ' &middot; change '+cur(Math.max(0,o.received-o.total))+'</small></div></div>' : '')
@@ -759,6 +775,7 @@ function receiptText(o){
   o.items.forEach(function(x){ l.push(x.qty+" x "+x.name+"   "+cur(x.price*x.qty)); });
   if (o.fee) l.push("Delivery   "+cur(o.fee));
   if (o.discount) l.push("Discount   -"+cur(o.discount));
+  if (o.cust.addr) { l.push(""); l.push("Deliver to: "+o.cust.addr); }
   l.push("");
   l.push("TOTAL: "+cur(o.total));
   l.push(o.paid ? ("Paid by "+(o.method==="card"?"card":"cash")+". Thank you!")
@@ -788,14 +805,118 @@ function deleteOrder(id){
 /* =====================================================================
    MONEY
    ===================================================================== */
+/* ---------- period ---------- */
+var period = "day";
+function periodRange(){
+  var n = new Date(), s;
+  if (period === "week"){
+    var off = (n.getDay() + 6) % 7;              /* week starts Monday */
+    s = new Date(n.getFullYear(), n.getMonth(), n.getDate() - off);
+  } else if (period === "month"){
+    s = new Date(n.getFullYear(), n.getMonth(), 1);
+  } else {
+    s = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  }
+  var e = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
+  return { from:s.getTime(), to:e.getTime() };
+}
+function periodLabel(){
+  var n = new Date();
+  if (period === "week")  return "This week";
+  if (period === "month") return n.toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+  return "Today";
+}
+function ordersIn(r){ return db.orders.filter(function(o){ return o.ts >= r.from && o.ts < r.to; }); }
+function costsIn(r){ return costsAll().filter(function(c){ return c.ts >= r.from && c.ts < r.to; }); }
+
+/* ---------- costs ---------- */
+var COST_TAGS = ["Ingredients","Gas","Packaging","Transport","Drinks","Other"];
+function costsAll(){ if (!db.costs) db.costs = []; return db.costs; }
+function findCost(id){
+  var l = costsAll();
+  for (var i=0;i<l.length;i++) if (l[i].id === id) return l[i];
+  return null;
+}
+function openCost(id){
+  var c = id ? findCost(id) : null;
+  var isNew = !c;
+  if (isNew) c = { amount:"", label:"", ts:Date.now() };
+  var chips = COST_TAGS.map(function(t){
+    return '<button aria-pressed="'+(c.label===t)+'" onclick="pickTag(this,\''+t+'\')">'+t+'</button>';
+  }).join("");
+  var h = ''
+    + '<div class="fgroup"><label class="fl">How much did it cost ('+CUR+')</label>'
+    +   '<input id="cAmt" type="number" inputmode="decimal" step="0.01" placeholder="0" '
+    +   'value="'+esc(c.amount)+'" autofocus></div>'
+    + '<div class="fgroup"><label class="fl">What was it for</label>'
+    +   '<div class="chips">'+chips+'</div>'
+    +   '<input id="cLbl" value="'+esc(c.label)+'" placeholder="Chicken, pasta, cups..."></div>'
+    + '<div class="fgroup"><label class="fl">Day</label>'
+    +   '<input id="cDate" type="date" value="'+dkeyOf(c.ts)+'"></div>'
+    + '<button class="btn primary" onclick="saveCost('+(id?"'"+esc(id)+"'":"null")+')">'
+    +   (isNew ? "Add cost" : "Save changes") + '</button>'
+    + (isNew ? '' : '<div style="height:10px"></div>'
+        + '<button class="btn danger" onclick="deleteCost(\''+esc(id)+'\')">Delete this cost</button>')
+    + '<p class="note">Put in what she spent that day: ingredients, gas, packaging. '
+    + 'The Money tab takes it off the sales so she sees what she really kept.</p>';
+  openSheet(isNew ? "Add a cost" : "Edit cost", h);
+}
+function pickTag(btn, tag){
+  [].forEach.call(btn.parentNode.children, function(b){ b.setAttribute("aria-pressed", b===btn?"true":"false"); });
+  document.getElementById("cLbl").value = tag;
+}
+function saveCost(id){
+  var amt = parseFloat(document.getElementById("cAmt").value);
+  if (isNaN(amt) || amt <= 0){ toast("Put in an amount"); return; }
+  var lbl = document.getElementById("cLbl").value.trim() || "Other";
+  var dv = document.getElementById("cDate").value.split("-");
+  var when = new Date(+dv[0], +dv[1]-1, +dv[2], 12, 0, 0).getTime();
+  if (id){
+    var c = findCost(id);
+    if (c){ c.amount = amt; c.label = lbl; c.ts = when; }
+  } else {
+    costsAll().push({ id:"c"+Date.now()+Math.random().toString(36).slice(2,6),
+                      ts:when, label:lbl, amount:amt });
+  }
+  save(); closeSheet(); renderAll(); buzz(20); toast("Cost saved");
+}
+function deleteCost(id){
+  var c = findCost(id); if (!c) return;
+  if (!confirm("Delete this cost of "+cur(c.amount)+"?")) return;
+  db.costs = costsAll().filter(function(x){ return x.id !== id; });
+  save(); closeSheet(); renderAll(); toast("Cost deleted");
+}
+
+/* ---------- day maths ---------- */
+function allDayKeys(){
+  var k = {};
+  db.orders.forEach(function(o){ k[dkeyOf(o.ts)] = 1; });
+  costsAll().forEach(function(c){ k[dkeyOf(c.ts)] = 1; });
+  return Object.keys(k).sort().reverse();
+}
+function dayStats(key){
+  var os = db.orders.filter(function(o){ return dkeyOf(o.ts) === key; });
+  var cs = costsAll().filter(function(c){ return dkeyOf(c.ts) === key; });
+  var s = sum(os, function(o){ return o.total; });
+  var c = sum(cs, function(x){ return x.amount; });
+  return { key:key, orders:os, costs:cs, sales:s, spent:c, profit:s-c,
+           due: sum(os.filter(function(o){ return !o.paid; }), function(o){ return o.total; }) };
+}
+
+/* ---------- money tab ---------- */
 function renderMoney(){
-  var list = todayOrders();
-  var total = sum(list, function(o){ return o.total; });
-  var paid  = sum(list.filter(function(o){return o.paid;}), function(o){ return o.total; });
-  var due   = total - paid;
-  var cash  = sum(list.filter(function(o){return o.paid && o.method==="cash";}), function(o){ return o.total; });
-  var card  = sum(list.filter(function(o){return o.paid && o.method==="card";}), function(o){ return o.total; });
-  var avg   = list.length ? total/list.length : 0;
+  var r = periodRange();
+  var list = ordersIn(r);
+  var cst  = costsIn(r);
+
+  var sales = sum(list, function(o){ return o.total; });
+  var paid  = sum(list.filter(function(o){ return o.paid; }), function(o){ return o.total; });
+  var due   = sales - paid;
+  var cash  = sum(list.filter(function(o){ return o.paid && o.method==="cash"; }), function(o){ return o.total; });
+  var card  = sum(list.filter(function(o){ return o.paid && o.method==="card"; }), function(o){ return o.total; });
+  var spent = sum(cst, function(c){ return c.amount; });
+  var profit = sales - spent;
+  var margin = sales > 0 ? Math.round(profit / sales * 100) : 0;
 
   var h = "";
 
@@ -805,16 +926,32 @@ function renderMoney(){
        + '<button onclick="backup()">Back up now</button></div></div>';
   }
 
-  h += '<div class="hero"><div class="k">Today</div>'
-     + '<div class="v"><span>'+CUR+'</span>'+money(total)+'</div>'
-     + '<div class="sub"><div>Orders<b>'+list.length+'</b></div>'
-     + '<div>Average<b>'+cur(avg)+'</b></div></div></div>';
+  h += '<div class="chips">'
+     + pchip("day","Today") + pchip("week","This week") + pchip("month","This month")
+     + '</div>';
+
+  var cls = spent === 0 && sales === 0 ? "" : (profit >= 0 ? " win" : " loss");
+  h += '<div class="hero'+cls+'"><div class="k">'+esc(periodLabel())+' &middot; kept</div>'
+     + '<div class="v"><span>'+CUR+'</span>'+money(profit)+'</div>'
+     + '<div class="sub"><div>Sold<b>'+cur(sales)+'</b></div>'
+     + '<div>Spent<b>'+cur(spent)+'</b></div>'
+     + '<div>Margin<b>'+margin+'%</b></div></div></div>';
+
+  if (spent === 0){
+    h += '<div class="banner" style="background:var(--pink-wash);border-color:var(--line);color:#a8566f">'
+       + '<span>&#128161;</span><div>No costs entered yet, so this is still just your sales. '
+       + 'Add what you spent and the number above becomes your real profit. '
+       + '<button style="color:#a8566f" onclick="openCost(null)">Add a cost</button></div></div>';
+  }
 
   h += '<div class="stats">'
      + '<div class="stat ok"><div class="k">In hand</div><div class="v">'+cur(paid)+'</div></div>'
      + '<div class="stat'+(due?' due':'')+'"><div class="k">Still owed</div><div class="v">'+cur(due)+'</div></div>'
      + '<div class="stat"><div class="k">Cash</div><div class="v">'+cur(cash)+'</div></div>'
      + '<div class="stat"><div class="k">Card</div><div class="v">'+cur(card)+'</div></div>'
+     + '<div class="stat"><div class="k">Orders</div><div class="v">'+list.length+'</div></div>'
+     + '<div class="stat"><div class="k">Average order</div><div class="v">'
+     +   cur(list.length ? sales/list.length : 0)+'</div></div>'
      + '</div>';
 
   if (due > 0){
@@ -822,16 +959,32 @@ function renderMoney(){
        + 'See who still owes ('+cur(due)+')</button><div style="height:12px"></div>';
   }
 
-  /* what sold today */
+  /* costs */
+  h += '<h2 class="sec">What she spent &middot; '+esc(periodLabel())+'</h2><div class="card">';
+  if (!cst.length){
+    h += '<div class="empty">Nothing entered yet.<br>Add the ingredients, gas and packaging '
+       + 'so the profit above is real.</div>';
+  } else {
+    h += cst.slice().sort(function(a,b){ return b.ts - a.ts; }).map(function(c){
+      return '<button class="row" onclick="openCost(\''+esc(c.id)+'\')">'
+        + '<div class="q">&minus;</div>'
+        + '<div class="nm">'+esc(c.label)+'<small>'+esc(shortDate(dkeyOf(c.ts)))+'</small></div>'
+        + '<div class="sub" style="color:var(--bad)">'+money(c.amount)+'</div></button>';
+    }).join("");
+    h += '<div class="totrow"><span class="l">Total spent</span><span class="r">'+cur(spent)+'</span></div>';
+  }
+  h += '</div><button class="btn" onclick="openCost(null)">Add a cost</button>';
+
+  /* what sold */
   var counts = {};
   list.forEach(function(o){ o.items.forEach(function(l){
     if (!counts[l.id]) counts[l.id] = { name:l.name, qty:0, val:0 };
-    counts[l.id].qty += l.qty; counts[l.id].val += l.qty*l.price;
+    counts[l.id].qty += l.qty; counts[l.id].val += l.qty * l.price;
   }); });
   var ids = Object.keys(counts).sort(function(a,b){ return counts[b].qty - counts[a].qty; });
   if (ids.length){
     var top = counts[ids[0]].qty;
-    h += '<h2 class="sec">What sold today</h2><div class="card">';
+    h += '<h2 class="sec">What sold</h2><div class="card">';
     ids.forEach(function(id){
       var c = counts[id];
       h += '<div class="row"><div class="q">'+c.qty+'</div>'
@@ -843,69 +996,90 @@ function renderMoney(){
   }
 
   h += '<div class="actions">'
-     + '<button class="btn" onclick="shareDay()">Send summary</button>'
+     + '<button class="btn" onclick="shareSummary()">Send summary</button>'
      + '<button class="btn" onclick="exportCSV()">Export CSV</button>'
      + '</div>';
 
-  /* previous days */
-  var byDay = {};
-  db.orders.forEach(function(o){
-    var k = dkeyOf(o.ts);
-    if (k === dkey()) return;
-    (byDay[k] = byDay[k] || []).push(o);
-  });
-  var days = Object.keys(byDay).sort().reverse();
-  if (days.length){
-    var grand = 0, gdue = 0;
-    days.forEach(function(k){
-      grand += sum(byDay[k], function(o){ return o.total; });
-      gdue  += sum(byDay[k].filter(function(o){return !o.paid;}), function(o){ return o.total; });
+  /* day by day */
+  var keys = allDayKeys();
+  if (period === "day") {
+    keys = keys.slice(0, 21);
+  } else {
+    keys = keys.filter(function(k){
+      var q = k.split("-"), ts = new Date(+q[0], +q[1]-1, +q[2], 12).getTime();
+      return ts >= r.from && ts < r.to;
     });
-    h += '<h2 class="sec">Earlier days</h2>';
-    h += '<div class="card"><div class="totrow"><span class="l">'+days.length+(days.length===1?' earlier day':' earlier days')+'</span>'
-       + '<span class="r">'+cur(grand)+'</span></div></div>';
-    if (gdue > 0){
-      h += '<div class="card"><div class="row"><div class="nm">Still owed from earlier days</div>'
-         + '<span class="tag due">'+cur(gdue)+'</span></div></div>';
-    }
-    days.slice(0,60).forEach(function(k){
-      var l = byDay[k];
-      var t = sum(l, function(o){ return o.total; });
-      var d = sum(l.filter(function(o){return !o.paid;}), function(o){ return o.total; });
-      h += '<details class="card day"><summary><span>'+esc(shortDate(k))
-         + '<small>'+l.length+' orders'+(d?' &middot; '+cur(d)+' owed':'')+'</small></span>'
-         + '<span class="v">'+cur(t)+'</span></summary><div style="border-top:1px solid var(--line)">'
-         + l.slice().sort(function(a,b){return b.ts-a.ts;}).map(orderRow).join("")
+  }
+
+  if (keys.length){
+    var rows = keys.map(dayStats);
+    var wins = rows.filter(function(d){ return d.profit > 0; }).length;
+    var loss = rows.filter(function(d){ return d.profit < 0; }).length;
+    var peak = Math.max.apply(null, rows.map(function(d){ return Math.abs(d.profit) || 0; })) || 1;
+
+    h += '<h2 class="sec">Day by day</h2>';
+    h += '<div class="card"><div class="row"><div class="nm">Good days vs bad days'
+       + '<small>'+rows.length+(rows.length===1?' day':' days')+' with activity</small></div>'
+       + '<span class="tag paid">'+wins+' up</span>&nbsp;'
+       + '<span class="tag '+(loss?'due':'plain')+'">'+loss+' down</span></div></div>';
+
+    rows.forEach(function(d){
+      var pos = d.profit >= 0;
+      h += '<details class="card day"><summary>'
+         + '<span style="flex:1;min-width:0">'+esc(shortDate(d.key))
+         +   '<small>'+d.orders.length+(d.orders.length===1?' order':' orders')
+         +   ' &middot; sold '+money(d.sales)+' &middot; spent '+money(d.spent)
+         +   (d.due ? ' &middot; '+money(d.due)+' owed' : '')+'</small>'
+         +   '<div class="dbar"><i style="width:'+Math.round(Math.abs(d.profit)/peak*100)
+         +     '%;background:'+(pos?'var(--ok)':'var(--bad)')+'"></i></div>'
+         + '</span>'
+         + '<span class="v" style="color:'+(pos?'var(--ok)':'var(--bad)')+'">'
+         +   (pos?'':'&minus;')+cur(Math.abs(d.profit))+'</span></summary>'
+         + '<div style="border-top:1px solid var(--line)">'
+         + d.orders.slice().sort(function(a,b){ return b.ts - a.ts; }).map(orderRow).join("")
+         + d.costs.map(function(c){
+             return '<div class="row"><div class="q">&minus;</div>'
+               + '<div class="nm">'+esc(c.label)+'<small>cost</small></div>'
+               + '<div class="sub" style="color:var(--bad)">'+money(c.amount)+'</div></div>';
+           }).join("")
          + '</div></details>';
     });
   }
+
   document.getElementById("p-money").innerHTML = h;
 }
+function pchip(v,label){
+  return '<button aria-pressed="'+(period===v)+'" onclick="period=\''+v+'\';renderMoney()">'
+    + esc(label) + '</button>';
+}
 
-function shareDay(){
-  var list = todayOrders();
-  if (!list.length){ toast("Nothing to send yet"); return; }
-  var total = sum(list, function(o){ return o.total; });
-  var paid  = sum(list.filter(function(o){return o.paid;}), function(o){ return o.total; });
-  var cash  = sum(list.filter(function(o){return o.paid&&o.method==="cash";}), function(o){ return o.total; });
-  var card  = sum(list.filter(function(o){return o.paid&&o.method==="card";}), function(o){ return o.total; });
+function shareSummary(){
+  var r = periodRange();
+  var list = ordersIn(r), cst = costsIn(r);
+  if (!list.length && !cst.length){ toast("Nothing to send yet"); return; }
+  var sales = sum(list, function(o){ return o.total; });
+  var paid  = sum(list.filter(function(o){ return o.paid; }), function(o){ return o.total; });
+  var cash  = sum(list.filter(function(o){ return o.paid && o.method==="cash"; }), function(o){ return o.total; });
+  var card  = sum(list.filter(function(o){ return o.paid && o.method==="card"; }), function(o){ return o.total; });
+  var spent = sum(cst, function(c){ return c.amount; });
   var counts = {};
-  list.forEach(function(o){ o.items.forEach(function(l){
-    counts[l.name] = (counts[l.name]||0) + l.qty;
-  }); });
-  var l = ["Tish's Kitchen", niceDate(dkey()), ""];
-  Object.keys(counts).sort(function(a,b){return counts[b]-counts[a];})
+  list.forEach(function(o){ o.items.forEach(function(l){ counts[l.name] = (counts[l.name]||0) + l.qty; }); });
+  var l = ["Tish's Kitchen", periodLabel() === "Today" ? niceDate(dkey()) : periodLabel(), ""];
+  Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; })
     .forEach(function(n){ l.push(counts[n]+" x "+n); });
   l.push("");
   l.push("Orders: "+list.length);
-  l.push("Total: "+cur(total));
+  l.push("Sold: "+cur(sales));
+  l.push("Spent: "+cur(spent));
+  l.push("Kept: "+cur(sales-spent));
   l.push("Cash: "+cur(cash));
   l.push("Card: "+cur(card));
-  if (total-paid > 0) l.push("Still owed: "+cur(total-paid));
+  if (sales - paid > 0) l.push("Still owed: "+cur(sales-paid));
   var txt = l.join("\n");
   if (navigator.share){ navigator.share({ text: txt }).catch(function(){}); return; }
   copy(txt);
 }
+
 function copy(txt){
   if (navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(txt).then(function(){ toast("Copied"); }, function(){ fallbackCopy(txt); });
@@ -919,17 +1093,23 @@ function fallbackCopy(txt){
   document.body.removeChild(ta);
 }
 function exportCSV(){
-  if (!db.orders.length){ toast("No orders yet"); return; }
-  var rows = [["Date","Time","Customer","Phone","Type","Items","Subtotal","Delivery","Discount","Total","Paid","Method","Note"]];
+  if (!db.orders.length && !costsAll().length){ toast("Nothing to export yet"); return; }
+  var rows = [["Date","Time","Customer","Phone","Address","Type","Items","Subtotal","Delivery","Discount","Total","Paid","Method","Note"]];
   db.orders.slice().sort(function(a,b){return a.ts-b.ts;}).forEach(function(o){
     rows.push([
-      dkeyOf(o.ts), clock(o.ts), o.cust.name||"", o.cust.phone||"",
+      dkeyOf(o.ts), clock(o.ts), o.cust.name||"", o.cust.phone||"", o.cust.addr||"",
       o.type, o.items.map(function(l){return l.qty+"x "+l.name;}).join(" | "),
       money(sum(o.items,function(l){return l.price*l.qty;})),
       money(o.fee||0), money(o.discount||0), money(o.total),
       o.paid ? "yes":"no", o.method||"", o.note||""
     ]);
   });
+  if (costsAll().length){
+    rows.push([]); rows.push(["COSTS"]); rows.push(["Date","What for","Amount"]);
+    costsAll().slice().sort(function(a,b){ return a.ts - b.ts; }).forEach(function(c){
+      rows.push([dkeyOf(c.ts), c.label, money(c.amount)]);
+    });
+  }
   var csv = rows.map(function(r){
     return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(",");
   }).join("\n");
@@ -1146,7 +1326,7 @@ function removeItem(id){
 
 /* ---------- backup ---------- */
 function needsBackup(){
-  if (!db.orders.length) return false;
+  if (!db.orders.length && !costsAll().length) return false;
   var week = 7*24*60*60*1000;
   return !db.settings.backedUp || (Date.now() - db.settings.backedUp) > week;
 }
@@ -1168,6 +1348,7 @@ function restore(input){
         + p.orders.length + " orders will be loaded.")) return;
       db = p;
       db.settings = db.settings || { fee:10, cc:"599", backedUp:0 };
+      if (!db.costs) db.costs = [];
       if (!db.menu || !db.menu.length) db.menu = DEFAULT_MENU.slice();
       save(); renderAll(); toast("Backup restored");
     }catch(e){ toast("That file is not a Tish's Kitchen backup"); }
@@ -1179,7 +1360,7 @@ function wipe(){
   if (!confirm("Erase every order, customer and menu change on this phone?")) return;
   if (!confirm("Really? There is no undo. Make a backup first if you are not sure.")) return;
   localStorage.removeItem(KEY); localStorage.removeItem(OLDKEY);
-  db = { v:2, orders:[], menu:DEFAULT_MENU.slice(), settings:{ fee:10, cc:"599", backedUp:0 } };
+  db = { v:2, orders:[], costs:[], menu:DEFAULT_MENU.slice(), settings:{ fee:10, cc:"599", backedUp:0 } };
   cart = []; save(); closeSheet(); renderAll(); toast("Everything erased");
 }
 

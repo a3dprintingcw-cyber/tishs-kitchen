@@ -10,14 +10,21 @@ Open it on the phone, then **Add to Home Screen**. It opens like a real app and 
 ## The five tabs
 
 **Sell** — tap the food to build an order, then press **Charge**.
-On the charge screen: pickup or delivery, customer name and phone, paid or not paid,
-cash or card, cash received (it works out the change), a discount, and a note.
+On the charge screen: pickup or delivery, customer name and phone, a delivery address with
+a Map link, paid or not paid, cash or card, cash received (it works out the change),
+a discount, and a note.
 
 **Orders** — everything taken today. Filter by *To make*, *Owed*, or *Delivery*.
 Open an order to take the money later, mark it made, send a WhatsApp receipt, or delete it.
 
-**Money** — today's takings at a glance: total, in hand, still owed, cash vs card,
-what sold today, and every earlier day. Send a summary to WhatsApp, or export a CSV.
+**Money** — switch between **Today / This week / This month**. The big number is what she
+actually **kept**: sales minus costs. Under it: in hand, still owed, cash vs card, orders,
+average order, what sold, and a **day by day** list showing which days made money and which
+lost it, with a good-days vs bad-days count. Send a summary to WhatsApp, or export a CSV.
+
+**Costs** — on the Money tab she adds what she spent that day (ingredients, gas, packaging,
+transport). Tap a preset, type the amount, done. Without costs the app only shows sales;
+with them it shows real profit and the margin.
 
 **People** — every customer who gave a name or number: how many orders, how much they spent,
 what they usually order, and what they still owe. One tap sends a friendly payment reminder.
