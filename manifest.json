@@ -1,7 +1,7 @@
 {
-  "name": "Tish's Kitchen",
-  "short_name": "Tish's",
-  "description": "Order from Tish's Kitchen for pickup or delivery.",
+  "name": "TutiKuti",
+  "short_name": "TutiKuti",
+  "description": "Order from TutiKuti for pickup or delivery.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

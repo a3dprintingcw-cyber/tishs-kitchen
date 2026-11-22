@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Tish's Kitchen</title>
-<meta name="description" content="Order homemade pasta, burritos and cake cups from Tish's Kitchen in Curaçao. Pickup or delivery.">
+<title>TutiKuti</title>
+<meta name="description" content="Order homemade pasta, burritos and cake cups from TutiKuti in Curaçao. Pickup or delivery.">
 <meta name="theme-color" content="#fbd5e0">
-<meta property="og:title" content="Tish's Kitchen">
+<meta property="og:title" content="TutiKuti">
 <meta property="og:description" content="Homemade meals and cake cups. Order online for pickup or delivery.">
 <meta property="og:image" content="https://tishxkitchen.com/icon-512.png">
 <meta property="og:url" content="https://tishxkitchen.com/">
@@ -101,6 +101,9 @@
     color:var(--pink-deep);box-shadow:var(--shadow);line-height:1
   }
   .qty span{min-width:26px;text-align:center;font-weight:800}
+  .week{margin:22px 0 0;padding:16px 18px;border-radius:20px;background:#fff;box-shadow:var(--shadow);text-align:center}
+  .week b{display:block;font-family:Fredoka,Nunito,sans-serif;font-size:22px;color:var(--pink-deep)}
+  .week span{color:var(--muted);font-weight:700;font-size:14px}
   .soldout{font-size:13px;font-weight:800;color:var(--muted);background:#f5eef0;border-radius:999px;padding:6px 12px}
   .item.off{opacity:.6}
 
@@ -197,9 +200,9 @@
 
 <header class="hero">
   <div class="wrap">
-    <img class="logo" src="images/tk-logo.png" alt="Tish's Kitchen logo" width="92" height="92">
+    <img class="logo" src="images/tk-logo.png" alt="TutiKuti logo" width="92" height="92">
     <div>
-      <h1>Tish's Kitchen</h1>
+      <h1>TutiKuti</h1>
       <p>Homemade meals and sweet cake cups, made fresh in Curaçao.</p>
       <div class="chips">
         <span class="chip">🛍️ Pickup</span>
@@ -214,7 +217,7 @@
 
 <div class="wrap">
   <footer>
-    <p>© <span id="yr"></span> Tish's Kitchen · Curaçao</p>
+    <p>© <span id="yr"></span> TutiKuti · Curaçao</p>
   </footer>
 </div>
 
@@ -269,6 +272,13 @@ var KEY = "tishxkitchen.shop";
 var cart = {};                    // id -> qty
 var me = { name:"", phone:"", addr:"" };
 var form = { type:"pickup", when:"asap", date:"", time:"", pay:"cash", note:"" };
+// Weekly menu: Tish cooks on one day. From her app via the API.
+var WEEK = { live:false, day:"", today:"" };
+function niceDay(iso){
+  var p = iso.split("-"); var d = new Date(+p[0], +p[1]-1, +p[2]);
+  return d.toLocaleDateString("en-GB",{ weekday:"long", day:"numeric", month:"long" });
+}
+function ordersClosed(){ return WEEK.day && WEEK.today && WEEK.day < WEEK.today; }
 
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify({ cart:cart, me:me })); }catch(e){} }
 function load(){
@@ -291,9 +301,16 @@ function $(id){ return document.getElementById(id); }
    MENU
    ===================================================================== */
 function renderMenu(){
+  if (CONFIG.api && !WEEK.live){ $("menu").innerHTML = '<div class="week"><span>Loading the menu…</span></div>'; renderBar(); return; }
   var cats = [], by = {};
-  MENU.forEach(function(m){ if (!by[m.cat]){ by[m.cat]=[]; cats.push(m.cat); } by[m.cat].push(m); });
+  var list = WEEK.live ? MENU.filter(function(m){ return !m.off; }) : MENU;
+  if (ordersClosed()) list = [];
+  list.forEach(function(m){ if (!by[m.cat]){ by[m.cat]=[]; cats.push(m.cat); } by[m.cat].push(m); });
   var h = "";
+  if (WEEK.day && !ordersClosed() && list.length)
+    h += '<div class="week"><span>This week\'s menu, cooked fresh on</span><b>'+esc(niceDay(WEEK.day))+'</b><span>Order ahead for pickup or delivery that day</span></div>';
+  if (!list.length)
+    h += '<div class="week"><b>No menu open right now</b><span>The next menu is coming soon. Check back later!</span></div>';
   cats.forEach(function(c){
     h += '<h2 class="cat">'+esc(c)+'</h2><div class="grid">';
     by[c].forEach(function(m){
@@ -367,7 +384,10 @@ function renderCheckout(){
     +   '<button type="button" data-f="type" data-v="delivery" class="'+(form.type==="delivery"?"on":"")+'">🛵 Delivery<small>+ '+money(CONFIG.deliveryFee)+'</small></button>'
     + '</div>'
 
-    + '<div class="sec">When</div>'
+    + (WEEK.day
+      ? '<div class="sec">When</div><p style="margin:0 0 8px;font-weight:800">🗓️ '+esc(niceDay(WEEK.day))+'</p>'
+        + '<label class="fl" for="fTime">What time?</label><input id="fTime" type="time" value="'+esc(form.time)+'">'
+      : '<div class="sec">When</div>'
     + '<div class="seg">'
     +   '<button type="button" data-f="when" data-v="asap" class="'+(form.when==="asap"?"on":"")+'">⚡ As soon as possible</button>'
     +   '<button type="button" data-f="when" data-v="later" class="'+(form.when==="later"?"on":"")+'">🗓️ Pick a time</button>'
@@ -375,7 +395,7 @@ function renderCheckout(){
     + (form.when==="later"
         ? '<div class="row2" style="margin-top:10px"><div><label class="fl" for="fDate">Day</label><input id="fDate" type="date" min="'+todayISO(0)+'" value="'+esc(form.date)+'"></div>'
           + '<div><label class="fl" for="fTime">Time</label><input id="fTime" type="time" value="'+esc(form.time)+'"></div></div>'
-        : '')
+        : ''))
 
     + '<div class="sec">Your details</div>'
     + '<label class="fl" for="fName">Name</label><input id="fName" autocomplete="name" value="'+esc(me.name)+'" placeholder="Your name">'
@@ -449,6 +469,7 @@ function submit(){
   if (!me.name){ err.textContent = "Please add your name."; $("fName").focus(); return; }
   if (me.phone.replace(/\D/g,"").length < 7){ err.textContent = "Please add your WhatsApp number so Tish can reach you."; $("fPhone").focus(); return; }
   if (form.type==="delivery" && !me.addr){ err.textContent = "Please add your delivery address."; $("fAddr").focus(); return; }
+  if (WEEK.day){ form.when = "later"; form.date = WEEK.day; if (!form.time){ err.textContent = "Please pick a time."; return; } }
   if (form.when==="later" && (!form.date || !form.time)){ err.textContent = "Please pick a day and time."; return; }
   err.textContent = "";
 
@@ -558,15 +579,17 @@ function showDone(order, url, sent, fellBack){
 /* Live menu and prices from Tish's app. The list above is only the fallback. */
 function loadLiveMenu(cb){
   if (!CONFIG.api || !window.fetch) return;
+  setTimeout(function(){ if (!WEEK.live){ WEEK.live = true; renderMenu(); } }, 6000);
   fetch(CONFIG.api.replace(/\/$/,"") + "/menu").then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
-    if (!j || !j.items || !j.items.length) return;
+    if (!j || !j.items || !j.items.length){ if (!WEEK.live){ WEEK.live = true; renderMenu(); } return; }
     MENU = j.items.map(function(m){ return { id:m.id, name:m.name, price:m.price, cat:m.cat||"Other", emoji:m.emoji||"", img:m.img||"", off:!!m.off }; });
     if (typeof j.fee === "number") CONFIG.deliveryFee = j.fee;
-    for (var id in cart){ if (!item(id) || item(id).off) delete cart[id]; }
+    WEEK.live = true; WEEK.day = j.day || ""; WEEK.today = j.today || "";
+    for (var id in cart){ if (!item(id) || item(id).off || ordersClosed()) delete cart[id]; }
     save();
     $("chipFee").textContent = "🛵 Delivery " + money(CONFIG.deliveryFee);
     if (cb) cb(); else { renderMenu(); if ($("sheet").classList.contains("show") && count()) renderCheckout(); }
-  }).catch(function(){});
+  }).catch(function(){ if (!WEEK.live){ WEEK.live = true; renderMenu(); } });
 }
 
 /* ===================================================================== */
