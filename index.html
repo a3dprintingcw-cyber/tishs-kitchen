@@ -190,6 +190,7 @@
   .bank .kv span:first-child{color:var(--muted)}
   .bank .kv span:last-child{text-align:right}
   .ghost{margin-top:12px;width:100%;padding:14px;border-radius:16px;background:#fff;box-shadow:var(--shadow);font-weight:800;color:var(--pink-deep)}
+  .ghost svg{width:20px;height:20px;vertical-align:-4px;margin-right:6px}
 </style>
 </head>
 <body>
@@ -254,7 +255,10 @@ var CONFIG = {
     35: "",
     45: ""
   },
-  orderApi: null                // later: where orders are also saved so they appear in Tish's app
+  // Tish's own order system. Orders go straight into her app and her phone
+  // buzzes. If it cannot be reached, the order falls back to WhatsApp.
+  // Empty = WhatsApp only.
+  api: ""
 };
 
 var MENU = [
@@ -398,9 +402,13 @@ function renderCheckout(){
     + '</div>'
     + (form.pay==="online" ? '<p class="hint">'+(sentooLink(subtotal()+fee()) ? 'After you send the order you get a Pay now button.' : 'Tish will send you a payment link on WhatsApp.')+'</p>' : '')
 
+    + '<input type="text" id="fWeb" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px">'
     + '<p class="err" id="err"></p>'
-    + '<button class="go" type="button" id="goBtn">'+waIcon()+'Send order on WhatsApp</button>'
-    + '<p class="hint" style="text-align:center">Your order is not final until Tish confirms it on WhatsApp.</p>';
+    + (CONFIG.api
+        ? '<button class="go" type="button" id="goBtn">Send order to Tish</button>'
+          + '<p class="hint" style="text-align:center">Tish confirms your order on WhatsApp.</p>'
+        : '<button class="go" type="button" id="goBtn">'+waIcon()+'Send order on WhatsApp</button>'
+          + '<p class="hint" style="text-align:center">Your order is not final until Tish confirms it on WhatsApp.</p>');
   $("sheetBody").innerHTML = h;
   $("xBtn").onclick = closeSheet;
   $("goBtn").onclick = submit;
@@ -438,7 +446,9 @@ function makeCode(){
   return "TK-"+s;
 }
 
+var sending = false;
 function submit(){
+  if (sending) return;
   var err = $("err");
   me.name = ($("fName").value||"").trim();
   me.phone = ($("fPhone").value||"").trim();
@@ -451,43 +461,75 @@ function submit(){
   if (form.when==="later" && (!form.date || !form.time)){ err.textContent = "Please pick a day and time."; return; }
   err.textContent = "";
 
-  var code = makeCode();
   var items = [];
   for (var id in cart){ var m=item(id); items.push({ id:id, name:m.name, price:m.price, qty:cart[id] }); }
   var order = {
-    code: code, ts: Date.now(), source: "web",
+    code: makeCode(), ts: Date.now(), source: "web",
     items: items, fee: fee(), total: subtotal()+fee(),
     cust: { name: me.name, phone: me.phone, addr: form.type==="delivery" ? me.addr : "" },
     type: form.type, when: form.when==="asap" ? null : form.date+"T"+form.time,
-    pay: form.pay, note: (form.note||"").trim()
+    pay: form.pay, note: (form.note||"").trim(),
+    website: ($("fWeb") && $("fWeb").value) || ""
   };
 
-  var lines = ["🍽️ *New order "+code+"*", ""];
-  items.forEach(function(i){ lines.push(i.qty+" × "+i.name+"  "+money(i.price*i.qty)); });
-  if (order.fee) lines.push("Delivery  "+money(order.fee));
-  lines.push("*Total "+money(order.total)+"*", "");
-  lines.push((form.type==="delivery" ? "🛵 Delivery" : "🛍️ Pickup")+": "+niceWhen());
-  if (order.cust.addr) lines.push("📍 "+order.cust.addr);
-  lines.push("💳 Paying: "+(form.pay==="online" ? "Online with Sentoo" : "Cash"));
-  lines.push("👤 "+me.name+", "+me.phone);
-  if (order.note) lines.push("📝 "+order.note);
-  var text = lines.join("\n");
+  if (!CONFIG.api){ viaWhatsApp(order, true); return; }
 
-  // Save to Tish's app too, once that is switched on. Never blocks WhatsApp.
-  if (CONFIG.orderApi){
-    try{ fetch(CONFIG.orderApi, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(order), keepalive:true }).catch(function(){}); }catch(e){}
-  }
-
-  var url = CONFIG.whatsapp
-    ? "https://wa.me/"+CONFIG.whatsapp.replace(/\D/g,"")+"?text="+encodeURIComponent(text)
-    : null;
-  if (url) window.open(url, "_blank");
-
-  cart = {}; save(); renderMenu();
-  showDone(order, url);
+  sending = true;
+  var btn = $("goBtn"); btn.disabled = true; btn.textContent = "Sending…";
+  var done = false;
+  var timer = setTimeout(function(){ if (!done){ done = true; sending = false; viaWhatsApp(order, false); } }, 12000);
+  fetch(CONFIG.api.replace(/\/$/,"") + "/orders", {
+    method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(order)
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(j){ return { status:r.status, j:j }; });
+  }).then(function(res){
+    if (done) return; done = true; clearTimeout(timer); sending = false;
+    if (res.status === 201 && res.j.ref){
+      order.code = res.j.ref; order.total = res.j.total; order.fee = res.j.fee;
+      cart = {}; save(); renderMenu();
+      showDone(order, null, true);
+      return;
+    }
+    if (res.status >= 400 && res.status < 500 && res.status !== 429 && res.j.error){
+      // Something about the order itself (sold out, price changed). Let them fix it.
+      btn.disabled = false; btn.textContent = "Send order to Tish";
+      err.textContent = res.j.error;
+      if (res.status === 409) loadLiveMenu(function(){ renderMenu(); renderCheckout(); $("err").textContent = res.j.error; });
+      return;
+    }
+    viaWhatsApp(order, false);
+  }).catch(function(){
+    if (done) return; done = true; clearTimeout(timer); sending = false;
+    viaWhatsApp(order, false);
+  });
 }
 
-function showDone(order, url){
+function whatsappText(order){
+  var lines = ["🍽️ *New order "+order.code+"*", ""];
+  order.items.forEach(function(i){ lines.push(i.qty+" × "+i.name+"  "+money(i.price*i.qty)); });
+  if (order.fee) lines.push("Delivery  "+money(order.fee));
+  lines.push("*Total "+money(order.total)+"*", "");
+  lines.push((order.type==="delivery" ? "🛵 Delivery" : "🛍️ Pickup")+": "+niceWhen());
+  if (order.cust.addr) lines.push("📍 "+order.cust.addr);
+  lines.push("💳 Paying: "+(order.pay==="online" ? "Online with Sentoo" : "Cash"));
+  lines.push("👤 "+order.cust.name+", "+order.cust.phone);
+  if (order.note) lines.push("📝 "+order.note);
+  return lines.join("\n");
+}
+function waUrl(text){
+  return CONFIG.whatsapp ? "https://wa.me/"+CONFIG.whatsapp.replace(/\D/g,"")+"?text="+encodeURIComponent(text) : null;
+}
+
+// WhatsApp only, or the order system could not be reached.
+// openNow: still inside the tap, so the browser allows opening WhatsApp.
+function viaWhatsApp(order, openNow){
+  var url = waUrl(whatsappText(order));
+  if (url && openNow) window.open(url, "_blank");
+  cart = {}; save(); renderMenu();
+  showDone(order, url, false, !openNow);
+}
+
+function showDone(order, url, sent, fellBack){
   var bank = "";
   if (order.pay==="online"){
     var link = sentooLink(order.total);
@@ -500,16 +542,40 @@ function showDone(order, url){
           : '<p class="hint">Tish will send you a payment link for this amount on WhatsApp.</p>')
       + '</div>';
   }
-  $("sheetBody").innerHTML = ''
-    + '<div class="done"><div class="tick">✓</div>'
-    + '<h2>Almost done!</h2>'
-    + '<div class="code">'+order.code+'</div>'
-    + '<p>'+(url ? 'WhatsApp opened with your order. <b>Press send</b> so Tish gets it.' : 'Online ordering is being set up. Please message Tish on WhatsApp with this order.')+'</p>'
-    + bank
-    + (url ? '<a href="'+url+'" target="_blank" rel="noopener"><button class="go" type="button">'+waIcon()+'Open WhatsApp again</button></a>' : '')
+  var msg, buttons = "";
+  if (sent){
+    msg = '<h2>Order sent!</h2><div class="code">'+order.code+'</div>'
+      + '<p>Tish has your order. She will confirm on WhatsApp at <b>'+esc(order.cust.phone)+'</b>.</p>'
+      + '<p>Total <b>'+money(order.total)+'</b>'+(order.pay==="online" ? '' : ', cash when you get your food')+'</p>';
+    var q = waUrl("Hi Tish, about my order "+order.code+": ");
+    if (q) buttons += '<a href="'+q+'" target="_blank" rel="noopener"><button class="ghost" type="button">'+waIcon()+'Question? Message Tish</button></a>';
+  } else if (fellBack){
+    msg = '<h2>One more step</h2><div class="code">'+order.code+'</div>'
+      + '<p>We could not reach Tish\'s order system. <b>Tap below to send your order on WhatsApp</b> instead.</p>';
+    if (url) buttons += '<a href="'+url+'" target="_blank" rel="noopener"><button class="go" type="button">'+waIcon()+'Send order on WhatsApp</button></a>';
+  } else {
+    msg = '<h2>Almost done!</h2><div class="code">'+order.code+'</div>'
+      + '<p>'+(url ? 'WhatsApp opened with your order. <b>Press send</b> so Tish gets it.' : 'Online ordering is being set up. Please message Tish on WhatsApp with this order.')+'</p>';
+    if (url) buttons += '<a href="'+url+'" target="_blank" rel="noopener"><button class="go" type="button">'+waIcon()+'Open WhatsApp again</button></a>';
+  }
+  $("sheetBody").innerHTML = '<div class="done"><div class="tick">✓</div>' + msg + bank + buttons
     + '<button class="ghost" type="button" id="doneBtn">Back to the menu</button></div>';
   $("doneBtn").onclick = function(){ closeSheet(); form.note=""; };
   $("sheet").scrollTop = 0;
+}
+
+/* Live menu and prices from Tish's app. The list above is only the fallback. */
+function loadLiveMenu(cb){
+  if (!CONFIG.api || !window.fetch) return;
+  fetch(CONFIG.api.replace(/\/$/,"") + "/menu").then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+    if (!j || !j.items || !j.items.length) return;
+    MENU = j.items.map(function(m){ return { id:m.id, name:m.name, price:m.price, cat:m.cat||"Other", emoji:m.emoji||"", img:m.img||"", off:!!m.off }; });
+    if (typeof j.fee === "number") CONFIG.deliveryFee = j.fee;
+    for (var id in cart){ if (!item(id) || item(id).off) delete cart[id]; }
+    save();
+    $("chipFee").textContent = "🛵 Delivery " + money(CONFIG.deliveryFee);
+    if (cb) cb(); else { renderMenu(); if ($("sheet").classList.contains("show") && count()) renderCheckout(); }
+  }).catch(function(){});
 }
 
 /* ===================================================================== */
@@ -517,6 +583,7 @@ $("yr").textContent = new Date().getFullYear();
 $("chipFee").textContent = "🛵 Delivery " + money(CONFIG.deliveryFee);
 load();
 renderMenu();
+loadLiveMenu();
 </script>
 </body>
 </html>
